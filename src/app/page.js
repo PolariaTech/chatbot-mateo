@@ -163,14 +163,16 @@ export default function Home() {
         )}
 
         <footer className="composer">
-          <input
-            type="text"
-            placeholder="Pregunta cualquier cosa..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button onClick={enviarMensaje}>Enviar</button>
+          <div className="composer-inner">
+            <input
+              type="text"
+              placeholder="Pregunta cualquier cosa..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button onClick={enviarMensaje}>Enviar</button>
+          </div>
         </footer>
       </main>
 
