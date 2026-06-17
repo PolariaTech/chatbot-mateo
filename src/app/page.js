@@ -87,7 +87,7 @@ export default function Home() {
               <div key={index} className={`message ${msg.tipo}`}>
                 {msg.tipo === 'ia' ? (
                   <>
-                    <div className="message-header">🤖 Mateo</div>
+                    <div className="message-header"> Mateo</div>
                     <div>{msg.texto}</div>
                   </>
                 ) : (
