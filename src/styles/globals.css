@@ -19,22 +19,33 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  background: var(--bg);
+}
+
 body {
   font-family: system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--w);
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
 }
 
 .layout {
   display: flex;
   height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* Sidebar */
 .sidebar {
   width: 280px;
+  flex: 0 0 280px;
   background: var(--bg);
   border-right: 1px solid var(--w08);
   display: flex;
@@ -44,6 +55,7 @@ body {
 
 .sidebar.collapsed {
   width: 0;
+  flex-basis: 0;
   overflow: hidden;
   border-right: none;
 }
@@ -147,9 +159,11 @@ body {
 /* Main Content */
 .main {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  overflow: hidden;
 }
 
 .topbar {
@@ -160,6 +174,7 @@ body {
   padding: 0 25px;
   background: var(--panel);
   border-bottom: 1px solid var(--w08);
+  flex-shrink: 0;
 }
 
 .login-btn {
@@ -181,6 +196,7 @@ body {
   gap: 10px;
   font-size: clamp(16px, 2.5vw, 20px);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* Welcome Screen */
@@ -193,6 +209,8 @@ body {
   gap: clamp(16px, 3vw, 25px);
   padding: clamp(16px, 4vw, 32px);
   width: 100%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .hero-logo {
@@ -219,6 +237,7 @@ body {
   max-width: 18ch;
   line-height: 1.2;
   background: linear-gradient(135deg, #00e5cc 0%, rgba(0, 210, 250, 0.85) 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -270,6 +289,7 @@ body {
   max-width: 760px;
   margin: 0 auto;
   align-self: center;
+  min-height: 0;
 }
 
 .message {
@@ -308,6 +328,7 @@ body {
   justify-content: center;
   background: var(--panel);
   border-top: 1px solid var(--w08);
+  flex-shrink: 0;
 }
 
 .composer-inner {
@@ -348,6 +369,55 @@ body {
   font-weight: 600;
 }
 
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 90;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 100;
+    width: min(280px, 85vw);
+    max-width: 85vw;
+    flex-basis: auto;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .sidebar.collapsed {
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    overflow: hidden;
+    border-right: none;
+    box-shadow: none;
+  }
+
+  .main {
+    width: 100%;
+  }
+
+  .welcome {
+    justify-content: flex-start;
+  }
+
+  .composer {
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (max-width: 640px) {
   .cards {
     grid-template-columns: 1fr;
@@ -355,6 +425,8 @@ body {
 
   .topbar {
     padding: 0 16px;
+    height: 60px;
+    gap: 10px;
   }
 
   .login-btn {
@@ -364,6 +436,131 @@ body {
 
   .chat {
     padding: 12px 16px;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  .cards-list {
+    gap: 12px;
+  }
+
+  .card-item {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .card-avatar {
+    margin-right: 0;
+  }
+
+  .card-content h3 {
+    font-size: 0.95rem;
+  }
+
+  .card-content p {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 12px;
+  }
+
+  .topbar > div {
+    min-width: 0;
+    gap: 10px !important;
+  }
+
+  .topbar-title {
+    gap: 8px;
+    font-size: 15px;
+    min-width: 0;
+  }
+
+  .login-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .welcome {
+    gap: 14px;
+    padding: 16px 14px;
+  }
+
+  .hero-logo {
+    max-width: min(78vw, 280px);
+  }
+
+  .hero-logo__img {
+    max-height: 72px;
+  }
+
+  .welcome h1 {
+    font-size: clamp(22px, 7vw, 30px);
+    max-width: 16ch;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    max-width: 100%;
+  }
+
+  .cards-list {
+    max-width: 100%;
+  }
+
+  .card-item {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .card-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .card-content h3,
+  .card-content p {
+    overflow-wrap: anywhere;
+  }
+
+  .composer {
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .composer-inner {
+    gap: 6px;
+    padding: 5px;
+    border-radius: 22px;
+  }
+
+  .composer input {
+    padding: 10px 0 10px 10px;
+    font-size: 14px;
+  }
+
+  .composer button {
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 640px) {
+  .welcome {
+    gap: 12px;
+  }
+
+  .hero-logo__img {
+    max-height: 60px;
+  }
+
+  .card-item {
+    padding-block: 10px;
   }
 }
 
@@ -421,6 +618,7 @@ body {
   display: flex;
   flex-direction: column;
   text-align: left; /* Alineado a la izquierda */
+  min-width: 0;
 }
 
 /* Título de la consulta */

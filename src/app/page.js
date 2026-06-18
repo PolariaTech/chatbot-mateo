@@ -10,7 +10,8 @@ import { useChat } from '../hooks/useChat';
 import { FaWarehouse, FaBrain , FaChartBar  } from 'react-icons/fa';
 
 export default function Home() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [showLogoutForm, setShowLogoutForm] = useState(false);
   const chatEndRef = useRef(null);
@@ -31,8 +32,22 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const syncLayout = () => {
+      const mobile = mq.matches;
+      setIsMobile(mobile);
+      setIsSidebarCollapsed(mobile);
+    };
+
+    syncLayout();
+
+    mq.addEventListener('change', syncLayout);
+    return () => mq.removeEventListener('change', syncLayout);
+  }, []);
+
   const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
+    setIsSidebarCollapsed((collapsed) => !collapsed);
   };
 
   const handleKeyDown = (e) => {
@@ -43,6 +58,9 @@ export default function Home() {
 
   return (
     <div className="layout">
+      {isMobile && !isSidebarCollapsed && (
+        <div className="sidebar-backdrop" onClick={toggleSidebar} aria-hidden="true" />
+      )}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="brand">
           <button className="icon-btn" onClick={toggleSidebar}>☰</button>
@@ -71,8 +89,8 @@ export default function Home() {
       <main className="main">
         <header className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {isSidebarCollapsed && (
-              <button className="icon-btn" onClick={toggleSidebar}>☰</button>
+            {(isSidebarCollapsed || isMobile) && (
+              <button className="icon-btn" onClick={toggleSidebar} aria-label="Abrir menú">☰</button>
             )}
             <h2 className="topbar-title">
               <PolariaIcon size={22} />
