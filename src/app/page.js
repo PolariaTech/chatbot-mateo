@@ -186,7 +186,7 @@ export default function Home() {
           <div className="composer-inner">
             <input
               type="text"
-              placeholder="Pregunta cualquier cosa..."
+              placeholder="Pregunta cualquier cosa... "
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
