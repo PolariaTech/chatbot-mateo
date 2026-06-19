@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as authApi from '../lib/auth-api';
+import { redirectToWmsLogin } from '../lib/auth-config';
 import {
   getStoredSession,
   setStoredSession,
@@ -14,8 +15,10 @@ export function useAuth() {
   const [isReady, setIsReady] = useState(false);
 
   const applySession = useCallback((session) => {
+    if (!session?.user) return;
+
     setStoredSession(session);
-    setAccessToken(session.accessToken);
+    setAccessToken(session.accessToken ?? null);
     setUser(session.user);
   }, []);
 
@@ -28,26 +31,12 @@ export function useAuth() {
   useEffect(() => {
     let cancelled = false;
 
-    async function hydrate() {
+    function hydrate() {
       const stored = getStoredSession();
-      if (!stored) {
-        if (!cancelled) setIsReady(true);
-        return;
-      }
-
-      setAccessToken(stored.accessToken);
-      setUser(stored.user);
-
-      const me = await authApi.fetchMe(stored.accessToken);
       if (cancelled) return;
 
-      if (me.ok) {
-        const session = {
-          accessToken: stored.accessToken,
-          refreshToken: stored.refreshToken ?? null,
-          user: me.user,
-        };
-        applySession(session);
+      if (stored) {
+        applySession(stored);
       } else {
         clearSession();
       }
@@ -56,97 +45,32 @@ export function useAuth() {
     }
 
     hydrate();
+
+    const syncSession = (event) => {
+      if (event.storageArea && event.key && event.key !== 'polaria-auth') {
+        return;
+      }
+
+      const stored = getStoredSession();
+      if (stored) {
+        applySession(stored);
+      } else {
+        clearSession();
+      }
+    };
+
+    window.addEventListener('storage', syncSession);
+    window.addEventListener('focus', syncSession);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('storage', syncSession);
+      window.removeEventListener('focus', syncSession);
     };
   }, [applySession, clearSession]);
 
-  const prelogin = async (identificador, codigoEmpresa) => {
-    const trimmed = identificador?.trim();
-    if (!trimmed) {
-      return { success: false, error: 'Ingresa tu nombre de usuario.' };
-    }
-
-    try {
-      const result = await authApi.prelogin(trimmed, codigoEmpresa?.trim() || undefined);
-
-      if (result.ok) {
-        return { success: true, needsCompany: false };
-      }
-
-      if (authApi.needsCompanyCode(result.status, result.data)) {
-        return {
-          success: false,
-          needsCompany: true,
-          error: result.error || 'Ingresa el código de empresa.',
-        };
-      }
-
-      return {
-        success: false,
-        needsCompany: false,
-        error: result.error || 'No se pudo validar el usuario.',
-      };
-    } catch {
-      return {
-        success: false,
-        needsCompany: false,
-        error: 'No se pudo conectar con el servidor. Intenta de nuevo.',
-      };
-    }
-  };
-
-  const login = async (identificador, password, codigoEmpresa) => {
-    const trimmedUser = identificador?.trim();
-    const trimmedPassword = password?.trim();
-
-    if (!trimmedUser || !trimmedPassword) {
-      return { success: false, error: 'Completa todos los campos.' };
-    }
-
-    try {
-      const result = await authApi.login(
-        trimmedUser,
-        trimmedPassword,
-        codigoEmpresa?.trim() || undefined,
-      );
-
-      if (!result.ok) {
-        if (authApi.needsCompanyCode(result.status, result.data)) {
-          return {
-            success: false,
-            needsCompany: true,
-            error: result.error || 'Ingresa el código de empresa.',
-          };
-        }
-
-        return {
-          success: false,
-          needsCompany: false,
-          error: result.error || 'Credenciales incorrectas.',
-        };
-      }
-
-      applySession(result.session);
-      return { success: true };
-    } catch {
-      return {
-        success: false,
-        needsCompany: false,
-        error: 'No se pudo conectar con el servidor. Intenta de nuevo.',
-      };
-    }
-  };
-
-  const establishSession = useCallback(
-    (session) => {
-      applySession(session);
-    },
-    [applySession],
-  );
-
   const logout = async () => {
-    if (accessToken) {
+    if (user || accessToken) {
       try {
         await authApi.logout(accessToken);
       } catch {
@@ -154,16 +78,14 @@ export function useAuth() {
       }
     }
     clearSession();
+    redirectToWmsLogin();
   };
 
   return {
     user,
     accessToken,
     isReady,
-    isAuthenticated: !!user && !!accessToken,
-    prelogin,
-    login,
+    isAuthenticated: !!user,
     logout,
-    establishSession,
   };
 }

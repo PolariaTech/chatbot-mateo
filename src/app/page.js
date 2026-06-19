@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import PolariaIcon from '../components/PolariaIcon';
-import LoginForm from '../components/LoginForm';
 import LogoutForm from '../components/LogoutForm';
+import { redirectToWmsLogin } from '../lib/auth-config';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat';
 
@@ -12,11 +12,10 @@ import { FaWarehouse, FaBrain , FaChartBar  } from 'react-icons/fa';
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [showLoginForm, setShowLoginForm] = useState(false);
   const [showLogoutForm, setShowLogoutForm] = useState(false);
   const chatEndRef = useRef(null);
 
-  const { user, isAuthenticated, login, logout, prelogin } = useAuth();
+  const { user, isAuthenticated, isReady, logout } = useAuth();
 
   const {
     messages,
@@ -29,8 +28,14 @@ export default function Home() {
   } = useChat({
     user,
     isAuthenticated,
-    onRequireLogin: () => setShowLoginForm(true),
+    onRequireLogin: redirectToWmsLogin,
   });
+
+  useEffect(() => {
+    if (isReady && !isAuthenticated) {
+      redirectToWmsLogin();
+    }
+  }, [isReady, isAuthenticated]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,6 +64,17 @@ export default function Home() {
       enviarMensaje();
     }
   };
+
+  if (!isReady || !isAuthenticated) {
+    return (
+      <div className="sso-page">
+        <div className="sso-card">
+          <h1>Redirigiendo al inicio de sesión…</h1>
+          <p>Serás enviado al portal de Polaria WMS.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="layout">
@@ -107,15 +123,9 @@ export default function Home() {
               Asistente Mateo
             </h2>
           </div>
-          {isAuthenticated ? (
-            <button className="login-btn" onClick={() => setShowLogoutForm(true)}>
-              Cerrar sesión
-            </button>
-          ) : (
-            <button className="login-btn" onClick={() => setShowLoginForm(true)}>
-              Iniciar sesión
-            </button>
-          )}
+          <button className="login-btn" onClick={() => setShowLogoutForm(true)}>
+            Cerrar sesión
+          </button>
         </header>
 
         {showWelcome && (
@@ -196,11 +206,7 @@ export default function Home() {
           <div className="composer-inner">
             <input
               type="text"
-              placeholder={
-                isAuthenticated
-                  ? 'Pregunta cualquier cosa...'
-                  : 'Inicia sesión para chatear con Mateo...'
-              }
+              placeholder="Pregunta cualquier cosa..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -210,14 +216,7 @@ export default function Home() {
         </footer>
       </main>
 
-      {showLoginForm && (
-        <LoginForm
-          onLogin={login}
-          onPrelogin={prelogin}
-          onClose={() => setShowLoginForm(false)}
-        />
-      )}
-      {showLogoutForm && isAuthenticated && (
+      {showLogoutForm && (
         <LogoutForm
           user={user}
           onLogout={logout}

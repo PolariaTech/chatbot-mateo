@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { redirectToWmsLogin } from '../../../lib/auth-config';
 import * as authApi from '../../../lib/auth-api';
 import { setStoredSession } from '../../../lib/auth-storage';
 import PolariaIcon from '../../../components/PolariaIcon';
@@ -62,9 +63,9 @@ export default function SsoClient() {
             <button
               type="button"
               className="auth-btn auth-btn--primary"
-              onClick={() => router.replace('/')}
+              onClick={redirectToWmsLogin}
             >
-              Ir al inicio
+              Ir al inicio de sesión
             </button>
           </>
         ) : (

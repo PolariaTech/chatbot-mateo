@@ -1,8 +1,6 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'https://polaria-wms-api.onrender.com';
 
-const MATEO_CLIENT_HEADER = { 'X-Auth-Client': 'mateo' };
-
 async function parseJsonResponse(response) {
   const text = await response.text();
   if (!text) return {};
@@ -45,16 +43,24 @@ function normalizeSession(data) {
   return { accessToken, refreshToken, user };
 }
 
-async function request(path, { method = 'GET', body, token, mateoClient = false } = {}) {
+async function request(
+  path,
+  { method = 'GET', body, token, includeCredentials = false } = {},
+) {
   const headers = { 'Content-Type': 'application/json' };
-  if (mateoClient) Object.assign(headers, MATEO_CLIENT_HEADER);
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const options = {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
-  });
+  };
+
+  if (includeCredentials) {
+    options.credentials = 'include';
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, options);
 
   const data = await parseJsonResponse(response);
 
@@ -64,45 +70,6 @@ async function request(path, { method = 'GET', body, token, mateoClient = false 
     data,
     error: response.ok ? null : extractErrorMessage(data, 'Error en la solicitud.'),
   };
-}
-
-export function needsCompanyCode(status, data) {
-  if (status !== 422) return false;
-
-  const message = extractErrorMessage(data, '').toLowerCase();
-  return (
-    message.includes('empresa') ||
-    message.includes('tenant') ||
-    message.includes('codigo') ||
-    data?.requiresCodigoEmpresa === true ||
-    data?.requiresCompanyCode === true
-  );
-}
-
-export async function prelogin(identificador, codigoEmpresa) {
-  const body = { identificador };
-  if (codigoEmpresa) body.codigoEmpresa = codigoEmpresa;
-
-  return request('/auth/prelogin', { method: 'POST', body, mateoClient: true });
-}
-
-export async function login(identificador, password, codigoEmpresa) {
-  const body = { identificador, password };
-  if (codigoEmpresa) body.codigoEmpresa = codigoEmpresa;
-
-  const result = await request('/auth/login', { method: 'POST', body, mateoClient: true });
-  if (!result.ok) return result;
-
-  try {
-    return { ...result, session: normalizeSession(result.data) };
-  } catch (error) {
-    return {
-      ok: false,
-      status: 500,
-      data: result.data,
-      error: error.message,
-    };
-  }
 }
 
 export async function exchangeMateoCode(code) {
@@ -126,15 +93,23 @@ export async function exchangeMateoCode(code) {
 }
 
 export async function fetchMe(token) {
-  const result = await request('/auth/me', { token });
+  const result = await request('/auth/me', { token, includeCredentials: !token });
   if (!result.ok) return result;
+
+  let session = null;
+  try {
+    session = normalizeSession(result.data);
+  } catch {
+    session = null;
+  }
 
   return {
     ...result,
     user: normalizeUser(result.data?.user ?? result.data),
+    session,
   };
 }
 
 export async function logout(token) {
-  return request('/auth/logout', { method: 'POST', token });
+  return request('/auth/logout', { method: 'POST', token, includeCredentials: !token });
 }
