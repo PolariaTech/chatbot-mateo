@@ -3,9 +3,11 @@
 import '../styles/auth.css';
 
 export default function LogoutForm({ user, onLogout, onClose }) {
-  const handleSubmit = (e) => {
+  const displayName = user?.nombre || user?.username || user?.email || 'tu cuenta';
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogout();
+    await onLogout();
     onClose();
   };
 
@@ -14,7 +16,7 @@ export default function LogoutForm({ user, onLogout, onClose }) {
       <form className="auth-form" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h2>Cerrar sesión</h2>
         <p>
-          ¿Seguro que deseas salir de la cuenta <strong>{user?.email}</strong>?
+          ¿Seguro que deseas salir de la cuenta <strong>{displayName}</strong>?
         </p>
 
         <div className="auth-actions">

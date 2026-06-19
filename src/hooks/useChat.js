@@ -1,9 +1,8 @@
 import { useState } from 'react';
 
-const PHONE_NUMBER_ID = "1104260132766227";
-const USER_PHONE = "573017447947";
+const WEBHOOK_URL = 'https://polariatech.app.n8n.cloud/webhook/chat';
 
-export function useChat() {
+export function useChat({ user, isAuthenticated, onRequireLogin } = {}) {
   const [messages, setMessages] = useState([]);
   const [history, setHistory] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -18,42 +17,44 @@ export function useChat() {
     const texto = inputValue.trim();
     if (!texto) return;
 
+    if (!isAuthenticated || !user) {
+      onRequireLogin?.();
+      return;
+    }
+
     setShowWelcome(false);
     setInputValue('');
-    
+
     const nuevosMensajes = [...messages, { tipo: 'usuario', texto }];
     setMessages(nuevosMensajes);
-    setHistory(prev => [texto.substring(0, 30), ...prev]);
+    setHistory((prev) => [texto.substring(0, 30), ...prev]);
 
     const payload = {
-      entry: [{
-        changes: [{
-          value: {
-            metadata: { phone_number_id: PHONE_NUMBER_ID },
-            messages: [{
-              from: USER_PHONE,
-              id: 'wamid.' + crypto.randomUUID().replace(/-/g, ''),
-              type: 'text',
-              text: { body: texto }
-            }]
-          }
-        }]
-      }]
+      message: texto,
+      usuario: {
+        username: user.username,
+        idUsuario: user.idUsuario,
+        codigoEmpresa: user.codigoEmpresa,
+        nombre: user.nombre,
+      },
     };
 
     try {
-      const response = await fetch('https://polariatech.app.n8n.cloud/webhook/chat', {
+      const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
       const respuestaIA = data.output ?? data.reply ?? JSON.stringify(data);
 
       setMessages([...nuevosMensajes, { tipo: 'ia', texto: respuestaIA }]);
-    } catch (e) {
-      setMessages([...nuevosMensajes, { tipo: 'ia', texto: 'Error al conectar con el servidor.' }]);
+    } catch {
+      setMessages([
+        ...nuevosMensajes,
+        { tipo: 'ia', texto: 'Error al conectar con el servidor.' },
+      ]);
     }
   };
 
@@ -64,6 +65,6 @@ export function useChat() {
     setInputValue,
     showWelcome,
     nuevoChat,
-    enviarMensaje
+    enviarMensaje,
   };
 }

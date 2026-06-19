@@ -16,7 +16,7 @@ export default function Home() {
   const [showLogoutForm, setShowLogoutForm] = useState(false);
   const chatEndRef = useRef(null);
 
-  const { user, isAuthenticated, login, logout } = useAuth();
+  const { user, isAuthenticated, login, logout, prelogin } = useAuth();
 
   const {
     messages,
@@ -26,7 +26,11 @@ export default function Home() {
     showWelcome,
     nuevoChat,
     enviarMensaje
-  } = useChat();
+  } = useChat({
+    user,
+    isAuthenticated,
+    onRequireLogin: () => setShowLoginForm(true),
+  });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,10 +82,16 @@ export default function Home() {
         </div>
 
         <div className="user-panel">
-          <div className="avatar">{isAuthenticated ? user.name.charAt(0) : '?'}</div>
+          <div className="avatar">
+            {isAuthenticated ? (user.nombre || user.username || '?').charAt(0).toUpperCase() : '?'}
+          </div>
           <div>
-            <div className="user-name">{isAuthenticated ? user.name : 'Invitado'}</div>
-            <div className="user-role">{isAuthenticated ? user.role : 'Sin sesión'}</div>
+            <div className="user-name">
+              {isAuthenticated ? user.nombre || user.username : 'Invitado'}
+            </div>
+            <div className="user-role">
+              {isAuthenticated ? user.role || user.codigoEmpresa || 'Usuario' : 'Sin sesión'}
+            </div>
           </div>
         </div>
       </aside>
@@ -186,7 +196,11 @@ export default function Home() {
           <div className="composer-inner">
             <input
               type="text"
-              placeholder="Pregunta cualquier cosa..."
+              placeholder={
+                isAuthenticated
+                  ? 'Pregunta cualquier cosa...'
+                  : 'Inicia sesión para chatear con Mateo...'
+              }
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -197,7 +211,11 @@ export default function Home() {
       </main>
 
       {showLoginForm && (
-        <LoginForm onLogin={login} onClose={() => setShowLoginForm(false)} />
+        <LoginForm
+          onLogin={login}
+          onPrelogin={prelogin}
+          onClose={() => setShowLoginForm(false)}
+        />
       )}
       {showLogoutForm && isAuthenticated && (
         <LogoutForm

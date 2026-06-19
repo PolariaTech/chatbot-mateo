@@ -105,3 +105,45 @@
 .auth-btn--danger:hover {
   background: rgba(255, 107, 107, 0.25);
 }
+
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sso-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg, #020609);
+}
+
+.sso-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel, #0a1018);
+  border: 1px solid var(--w08, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.sso-card h1 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.sso-card p {
+  color: var(--w50, rgba(255, 255, 255, 0.5));
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sso-card .auth-btn {
+  margin-top: 8px;
+}
