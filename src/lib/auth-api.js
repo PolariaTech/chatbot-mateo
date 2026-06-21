@@ -41,14 +41,15 @@ function normalizeUser(rawUser = {}) {
     nombre: rawUser.nombre ?? rawUser.name ?? rawUser.username ?? '',
     codigoEmpresa: rawUser.codigoEmpresa ?? rawUser.codigo_empresa ?? null,
     email: rawUser.email ?? rawUser.correo ?? null,
-    role: rawUser.role ?? rawUser.rol ?? null,
+    role: rawUser.role ?? rawUser.rol ?? rawUser.idRol ?? rawUser.nombreRol ?? null,
   };
 }
 
 function normalizeSession(data) {
   const accessToken = data.accessToken ?? data.access_token ?? data.token;
   const refreshToken = data.refreshToken ?? data.refresh_token ?? null;
-  const user = normalizeUser(data.user ?? data.usuario ?? data);
+  const rawUser = data.user ?? data.usuario ?? data.context ?? data;
+  const user = normalizeUser(rawUser);
 
   if (!accessToken) {
     throw new Error('La API no devolvió un token de acceso.');
@@ -89,15 +90,15 @@ async function request(
   };
 }
 
-export async function prelogin(username) {
+export async function prelogin(identificador) {
   return request('/auth/prelogin', {
     method: 'POST',
-    body: { username },
+    body: { identificador },
   });
 }
 
 export async function login({ username, password, codigoEmpresa }) {
-  const body = { username, password };
+  const body = { identificador: username, password };
   if (codigoEmpresa) body.codigoEmpresa = codigoEmpresa;
 
   const result = await request('/auth/login', {
@@ -108,7 +109,12 @@ export async function login({ username, password, codigoEmpresa }) {
   if (!result.ok) return result;
 
   try {
-    return { ...result, session: normalizeSession(result.data) };
+    let session = normalizeSession(result.data);
+    const meResult = await fetchMe(session.accessToken);
+    if (meResult.ok && meResult.user) {
+      session = { ...session, user: meResult.user };
+    }
+    return { ...result, session };
   } catch (error) {
     return {
       ok: false,
