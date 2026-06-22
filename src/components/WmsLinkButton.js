@@ -1,12 +1,18 @@
 "use client";
 
 import { FaWarehouse } from "react-icons/fa";
-import { WMS_LOGIN_URL } from "../lib/auth-config";
+import { buildWmsReturnUrl, redirectToWmsWithSession } from "../lib/auth-config";
 
 export default function WmsLinkButton({ compact = false }) {
+  const handleClick = (event) => {
+    event.preventDefault();
+    redirectToWmsWithSession();
+  };
+
   return (
     <a
-      href={WMS_LOGIN_URL}
+      href={buildWmsReturnUrl()}
+      onClick={handleClick}
       className={`wms-link-btn${compact ? " wms-link-btn--compact" : ""}`}
       aria-label="Ir a Polaria WMS"
     >

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as authApi from '../lib/auth-api';
 import { isDirectLoginEnabled, redirectToWmsLogin } from '../lib/auth-config';
 import {
+  captureSessionFromLocation,
   getStoredSession,
   setStoredSession,
   clearStoredSession,
@@ -32,6 +33,7 @@ export function useAuth() {
     let cancelled = false;
 
     function hydrate() {
+      captureSessionFromLocation();
       const stored = getStoredSession();
       if (cancelled) return;
 

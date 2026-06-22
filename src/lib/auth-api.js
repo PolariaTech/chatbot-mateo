@@ -48,6 +48,7 @@ function normalizeUser(rawUser = {}) {
 function normalizeSession(data) {
   const accessToken = data.accessToken ?? data.access_token ?? data.token;
   const refreshToken = data.refreshToken ?? data.refresh_token ?? null;
+  const context = data.context ?? null;
   const rawUser = data.user ?? data.usuario ?? data.context ?? data;
   const user = normalizeUser(rawUser);
 
@@ -55,7 +56,7 @@ function normalizeSession(data) {
     throw new Error('La API no devolvió un token de acceso.');
   }
 
-  return { accessToken, refreshToken, user };
+  return { accessToken, refreshToken, context, user };
 }
 
 async function request(

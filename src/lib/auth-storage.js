@@ -114,6 +114,8 @@ function normalizeStoredSession(rawSession) {
 
   const accessToken = pickValue(source, TOKEN_KEYS);
   const refreshToken = pickValue(source, REFRESH_TOKEN_KEYS);
+  const rawContext =
+    sources.map((item) => item.context).find((item) => item && typeof item === 'object') ?? null;
   const rawUser =
     sources.map((item) => pickValue(item, USER_KEYS)).find(Boolean) ??
     sources.find((item) => item.email || item.correo || item.username || item.identificador) ??
@@ -123,10 +125,12 @@ function normalizeStoredSession(rawSession) {
   if (!accessToken) return null;
 
   const user = rawUser && typeof rawUser === 'object' ? normalizeUser(rawUser) : null;
+  const context = rawContext && typeof rawContext === 'object' ? rawContext : null;
 
   return {
     accessToken,
     refreshToken: refreshToken ?? null,
+    context,
     user: user && (user.idUsuario || user.username || user.nombre || user.email) ? user : null,
   };
 }
@@ -181,6 +185,130 @@ function findSessionBySeparateKeys(storage) {
   return session.accessToken && session.user ? session : null;
 }
 
+export function buildContextFromUser(user, context = null) {
+  if (context?.idUsuario && context?.scope) return context;
+  if (!user && !context) return null;
+
+  const scope = context?.scope ?? (user?.codigoEmpresa ? 'tenant' : 'platform');
+
+  return {
+    idUsuario: context?.idUsuario ?? user?.idUsuario ?? null,
+    idRol: context?.idRol ?? user?.role ?? null,
+    codigoEmpresa: context?.codigoEmpresa ?? user?.codigoEmpresa ?? null,
+    codigoCuenta: context?.codigoCuenta ?? null,
+    scope,
+  };
+}
+
+export function toWmsPersistPayload(session) {
+  if (!session?.accessToken) return null;
+
+  const context = buildContextFromUser(session.user, session.context);
+  const state = {
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken ?? null,
+  };
+
+  if (context) state.context = context;
+
+  return JSON.stringify({ state, version: 0 });
+}
+
+function encodeBase64Url(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function encodeSessionForUrl(sessionOrPayload) {
+  const payload =
+    typeof sessionOrPayload === 'string' ? sessionOrPayload : toWmsPersistPayload(sessionOrPayload);
+
+  if (!payload) return null;
+
+  return encodeBase64Url(payload);
+}
+
+export function decodeSessionFromUrl(encoded) {
+  if (!encoded) return null;
+
+  try {
+    const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    return normalizeStoredSession(JSON.parse(atob(padded)));
+  } catch {
+    try {
+      return normalizeStoredSession(JSON.parse(decodeURIComponent(encoded)));
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function captureSessionFromLocation(location = window.location) {
+  if (typeof window === 'undefined' || !location) return null;
+
+  const params = new URLSearchParams(location.search);
+  const hashSource = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+  const hashParams = new URLSearchParams(hashSource);
+
+  const encoded =
+    params.get('polaria-auth') ??
+    hashParams.get('polaria-auth') ??
+    params.get('session') ??
+    hashParams.get('session');
+
+  if (encoded) {
+    const session = decodeSessionFromUrl(encoded);
+    if (session) {
+      setStoredSession(session);
+      return session;
+    }
+  }
+
+  const accessToken = params.get('accessToken') ?? hashParams.get('accessToken');
+  if (!accessToken) return null;
+
+  const refreshToken = params.get('refreshToken') ?? hashParams.get('refreshToken');
+  const rawContext = params.get('context') ?? hashParams.get('context');
+  const rawUser = params.get('user') ?? hashParams.get('user');
+
+  const session = normalizeStoredSession({
+    accessToken,
+    refreshToken,
+    context: readJson(rawContext) ?? rawContext,
+    user: readJson(rawUser) ?? rawUser,
+  });
+
+  if (session) {
+    setStoredSession(session);
+    return session;
+  }
+
+  return null;
+}
+
+export function getWmsSessionPayload() {
+  if (typeof window === 'undefined') return null;
+
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.state?.accessToken) return raw;
+  } catch {
+    // Continúa con la normalización.
+  }
+
+  return toWmsPersistPayload(getStoredSession());
+}
+
 export function getStoredSession() {
   if (typeof window !== 'undefined') {
     const wmsSession = normalizeStoredSession(getStoredJson(sessionStorage, STORAGE_KEY));
@@ -198,7 +326,12 @@ export function getStoredSession() {
 export function setStoredSession(session) {
   if (typeof window === 'undefined' || !session?.accessToken) return;
 
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  const payload = toWmsPersistPayload({
+    ...session,
+    context: buildContextFromUser(session.user, session.context),
+  });
+
+  if (payload) sessionStorage.setItem(STORAGE_KEY, payload);
 }
 
 export function clearStoredSession() {

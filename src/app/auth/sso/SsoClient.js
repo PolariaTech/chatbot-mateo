@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { redirectToWmsLogin } from '../../../lib/auth-config';
 import * as authApi from '../../../lib/auth-api';
-import { setStoredSession } from '../../../lib/auth-storage';
+import { captureSessionFromLocation, getStoredSession, setStoredSession } from '../../../lib/auth-storage';
 import PolariaIcon from '../../../components/PolariaIcon';
 import '../../../styles/auth.css';
 
@@ -14,9 +14,15 @@ export default function SsoClient() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const capturedSession = captureSessionFromLocation();
     const code = searchParams.get('code');
 
     if (!code) {
+      if (capturedSession || getStoredSession()) {
+        router.replace('/');
+        return;
+      }
+
       setError('No se recibió un código de acceso. Vuelve al WMS e intenta de nuevo.');
       return;
     }
