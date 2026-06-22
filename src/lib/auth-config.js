@@ -9,6 +9,14 @@ function getWmsBaseUrl() {
   return WMS_LOGIN_URL.replace(/\/$/, '');
 }
 
+/** Misma lógica que getPostLoginRoute en polaria-wms-web. */
+export function getWmsPostLoginPath(session) {
+  const scope =
+    session?.context?.scope ?? (session?.user?.codigoEmpresa ? 'tenant' : 'platform');
+
+  return scope === 'platform' ? '/configurador' : '/dashboard';
+}
+
 export function buildWmsReturnUrl() {
   const payload = getWmsSessionPayload();
   const session = getStoredSession();
@@ -20,7 +28,9 @@ export function buildWmsReturnUrl() {
   const encoded = encodeSessionForUrl(payload);
   if (!encoded) return WMS_LOGIN_URL;
 
-  return `${getWmsBaseUrl()}/dashboard#polaria-auth=${encoded}`;
+  const path = getWmsPostLoginPath(session);
+
+  return `${getWmsBaseUrl()}${path}#polaria-auth=${encoded}`;
 }
 
 export function redirectToWmsWithSession() {
