@@ -9,6 +9,7 @@ import { isDirectLoginEnabled, redirectToWmsLogin } from '../lib/auth-config';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from '../components/LoginForm';
 import { useChat } from '../hooks/useChat';
+import FormattedMessage from '../components/FormattedMessage';
 
 import { FaWarehouse, FaBrain , FaChartBar  } from 'react-icons/fa';
 
@@ -207,14 +208,17 @@ export default function Home() {
         {!showWelcome && (
           <div className="chat">
             {messages.map((msg, index) => (
-              <div key={index} className={`message ${msg.tipo}`}>
+              <div
+                key={index}
+                className={`message ${msg.tipo}${msg.tipo === 'ia' ? ' message--formatted' : ''}`}
+              >
                 {msg.tipo === 'ia' ? (
                   <>
                     <div className="message-header">
                       <PolariaIcon size={18} />
                       Mateo
                     </div>
-                    <div>{msg.texto}</div>
+                    <FormattedMessage text={msg.texto} />
                   </>
                 ) : (
                   msg.texto
