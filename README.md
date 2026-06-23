@@ -47,8 +47,16 @@ cp .env.example .env.local
 |----------|-------------|
 | `NEXT_PUBLIC_API_BASE_URL` | URL base del API WMS. Producción: `https://polaria-wms-api.onrender.com` |
 | `NEXT_PUBLIC_WMS_LOGIN_URL` | URL base del WMS. Producción: `https://polaria-wms-web.vercel.app/` (usada para SSO y login manual) |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL base del proyecto Supabase (sin `/rest/v1` al final). Usada en servidor para persistir el historial de chat. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key de Supabase (Settings → API → `service_role`). **Solo servidor**, nunca con prefijo `NEXT_PUBLIC_`. |
+| `NEXT_PUBLIC_ALLOW_DIRECT_LOGIN` | Opcional. `true` fuerza login directo en producción; `false` fuerza SSO vía WMS. Por defecto: habilitado solo en `localhost`. |
 
-En Vercel, configura la misma variable en **Settings → Environment Variables**.
+### Despliegue en Vercel
+
+1. En **Settings → Environment Variables**, configura **todas** las variables anteriores para **Production** (y Preview si aplica).
+2. `SUPABASE_SERVICE_ROLE_KEY` debe marcarse como **Sensitive** y no exponerse al cliente.
+3. Tras añadir o cambiar variables, **vuelve a desplegar** (Redeploy) para que surtan efecto. Sin redeploy, las rutas `/api/mateo/*` responderán `503 Supabase no está configurado` aunque las variables ya estén guardadas.
+4. Verifica en producción: `GET /api/mateo/conversaciones` con un token válido debe responder `200`, no `503`.
 
 ## Contrato API (polaria-wms-api)
 
@@ -98,6 +106,19 @@ Con sesión activa, cada mensaje se envía a n8n con:
 
 Sin sesión, el chat no envía mensajes y se solicita iniciar sesión.
 
+### Historial en Supabase
+
+Con sesión activa y Supabase configurado, cada mensaje (usuario y asistente) se guarda vía las rutas API internas:
+
+| Método | Ruta | Uso |
+|--------|------|-----|
+| `GET` | `/api/mateo/conversaciones` | Listar conversaciones del usuario |
+| `POST` | `/api/mateo/conversaciones` | Crear conversación |
+| `GET` | `/api/mateo/conversaciones/{id}/mensajes` | Mensajes de una conversación |
+| `POST` | `/api/mateo/conversaciones/{id}/mensajes` | Guardar mensaje |
+
+El webhook de n8n responde al chat aunque Supabase falle; si el historial no se guarda en producción, revisa las variables de Supabase y que el último deploy sea posterior a su configuración.
+
 ## Estructura relevante
 
 ```
@@ -105,10 +126,13 @@ src/
   lib/
     auth-api.js      # Cliente HTTP hacia polaria-wms-api
     auth-storage.js  # Persistencia de tokens + usuario
+    mateo-api.js     # Cliente hacia /api/mateo (historial)
+    supabase-server.js # Cliente Supabase (solo servidor)
   hooks/
     useAuth.js       # Login, logout, hidratación /auth/me
-    useChat.js       # Chat con contexto de usuario
+    useChat.js       # Chat con contexto de usuario + persistencia
   app/
+    api/mateo/       # API de conversaciones y mensajes
     auth/sso/        # Ruta SSO desde WMS
   components/
     LoginForm.js     # Username + contraseña (+ empresa)
