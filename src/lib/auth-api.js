@@ -61,12 +61,12 @@ function normalizeSession(data) {
 
 async function request(
   path,
-  { method = 'GET', body, token, includeCredentials = false } = {},
+  { method = 'GET', body, token, includeCredentials = false, skipAuthClient = false } = {},
 ) {
   const headers = {
     'Content-Type': 'application/json',
-    'X-Auth-Client': 'mateo',
   };
+  if (!skipAuthClient) headers['X-Auth-Client'] = 'mateo';
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const options = {
@@ -124,6 +124,14 @@ export async function login({ username, password, codigoEmpresa }) {
       error: error.message,
     };
   }
+}
+
+export async function mateoHandoff(token) {
+  return request('/auth/mateo-handoff', {
+    method: 'POST',
+    token,
+    skipAuthClient: true,
+  });
 }
 
 export async function exchangeMateoCode(code) {

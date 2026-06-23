@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as authApi from '../lib/auth-api';
-import { isDirectLoginEnabled, redirectToWmsLogin, buildWmsReturnUrl } from '../lib/auth-config';
+import {
+  isDirectLoginEnabled,
+  redirectToWmsLogin,
+  buildWmsSsoUrl,
+  WMS_LOGIN_URL,
+} from '../lib/auth-config';
 import {
   captureSessionFromLocation,
   getStoredSession,
@@ -83,13 +88,44 @@ export function useAuth() {
     };
   }, [applySession, clearSession]);
 
-  const leaveForWms = useCallback(() => {
-    const url = buildWmsReturnUrl();
-    clearStoredSession();
-    setAccessToken(null);
-    setUser(null);
-    window.location.href = url;
-  }, []);
+  const leaveForWms = useCallback(async () => {
+    const token = accessToken ?? getStoredSession()?.accessToken;
+
+    if (!token) {
+      window.location.replace(WMS_LOGIN_URL);
+      return { ok: true };
+    }
+
+    try {
+      const handoff = await authApi.mateoHandoff(token);
+      if (!handoff.ok || !handoff.data?.code) {
+        return {
+          ok: false,
+          error: handoff.error || 'No se pudo preparar el acceso al WMS.',
+        };
+      }
+
+      const redirectUrl = buildWmsSsoUrl(handoff.data.code);
+
+      clearStoredSession();
+      setAccessToken(null);
+      setUser(null);
+
+      try {
+        await authApi.logout(token);
+      } catch {
+        // La redirección continúa aunque falle el logout en servidor.
+      }
+
+      window.location.replace(redirectUrl);
+      return { ok: true };
+    } catch {
+      return {
+        ok: false,
+        error: 'No se pudo conectar con el servidor. Revisa tu conexión.',
+      };
+    }
+  }, [accessToken]);
 
   const logout = async () => {
     if (user || accessToken) {

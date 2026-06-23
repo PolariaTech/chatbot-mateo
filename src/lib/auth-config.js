@@ -1,9 +1,4 @@
-import {
-  clearStoredSession,
-  encodeSessionForUrl,
-  getStoredSession,
-  getWmsSessionPayload,
-} from './auth-storage';
+import { getStoredSession } from './auth-storage';
 
 export const WMS_LOGIN_URL =
   process.env.NEXT_PUBLIC_WMS_LOGIN_URL || 'https://polaria-wms-web.vercel.app/';
@@ -14,36 +9,19 @@ function getWmsBaseUrl() {
   return WMS_LOGIN_URL.replace(/\/$/, '');
 }
 
-/** Misma lógica que getPostLoginRoute en polaria-wms-web. */
-export function getWmsPostLoginPath(session) {
-  const scope =
-    session?.context?.scope ?? (session?.user?.codigoEmpresa ? 'tenant' : 'platform');
-
-  return scope === 'platform' ? '/configurador' : '/dashboard';
+export function buildWmsSsoUrl(code) {
+  return `${getWmsBaseUrl()}/auth/sso?code=${encodeURIComponent(code)}`;
 }
 
+/** Fallback para href del botón WMS cuando aún no hay code de handoff. */
 export function buildWmsReturnUrl() {
-  const payload = getWmsSessionPayload();
   const session = getStoredSession();
 
-  if (!payload || !session?.accessToken) {
+  if (!session?.accessToken) {
     return WMS_LOGIN_URL;
   }
 
-  const encoded = encodeSessionForUrl(payload);
-  if (!encoded) return WMS_LOGIN_URL;
-
-  const path = getWmsPostLoginPath(session);
-
-  return `${getWmsBaseUrl()}${path}#polaria-auth=${encoded}`;
-}
-
-export function redirectToWmsWithSession() {
-  if (typeof window === 'undefined') return;
-
-  const url = buildWmsReturnUrl();
-  clearStoredSession();
-  window.location.href = url;
+  return `${getWmsBaseUrl()}/auth/sso`;
 }
 
 export function isDirectLoginEnabled() {
