@@ -200,7 +200,13 @@ export function useChat({
       });
 
       const data = await response.json();
-      const respuestaIA = data.output ?? data.reply ?? JSON.stringify(data);
+      const responseBody = Array.isArray(data) ? data[0] : data;
+      const respuestaIA =
+        responseBody?.output ??
+        responseBody?.reply ??
+        data.output ??
+        data.reply ??
+        JSON.stringify(data);
       const tokensUsados = data.tokensUsados ?? data.tokens_usados ?? null;
 
       setMessages([...nuevosMensajes, { tipo: 'ia', texto: respuestaIA }]);

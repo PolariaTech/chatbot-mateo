@@ -97,7 +97,7 @@ function parseReport(text) {
     if (bulletMatch) {
       hasStructure = true;
       if (!currentSection) currentSection = { title: null, items: [] };
-      currentSection.items.push(splitLabelValue(bulletMatch[1]));
+      currentSection.items.push(splitLabelValue(bulletMatch[2]));
       continue;
     }
 
