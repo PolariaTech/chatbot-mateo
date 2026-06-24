@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as authApi from '../lib/auth-api';
 import {
   isDirectLoginEnabled,
@@ -19,7 +19,6 @@ export function useAuth() {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
   const [isReady, setIsReady] = useState(false);
-  const leavingForWmsRef = useRef(false);
 
   const applySession = useCallback((session) => {
     if (!session?.accessToken) return;
@@ -110,7 +109,7 @@ export function useAuth() {
 
       clearSession();
 
-      if (!leavingForWmsRef.current && !isDirectLoginEnabled()) {
+      if (!isDirectLoginEnabled()) {
         redirectToWmsLogin();
       }
     };
@@ -133,12 +132,9 @@ export function useAuth() {
       return { ok: true };
     }
 
-    leavingForWmsRef.current = true;
-
     try {
       const handoff = await authApi.mateoHandoff(token);
       if (!handoff.ok || !handoff.data?.code) {
-        leavingForWmsRef.current = false;
         return {
           ok: false,
           error: handoff.error || 'No se pudo preparar el acceso al WMS.',
@@ -151,16 +147,15 @@ export function useAuth() {
       setAccessToken(null);
       setUser(null);
 
-      // Redirigir de inmediato con el código SSO (mismo patrón WMS → Mateo).
+      try {
+        await authApi.logout(token);
+      } catch {
+        // La redirección continúa aunque falle el logout en servidor.
+      }
+
       window.location.replace(redirectUrl);
-
-      authApi.logout(token).catch(() => {
-        // La redirección ya ocurrió; el logout en servidor es best-effort.
-      });
-
       return { ok: true };
     } catch {
-      leavingForWmsRef.current = false;
       return {
         ok: false,
         error: 'No se pudo conectar con el servidor. Revisa tu conexión.',
