@@ -20,7 +20,7 @@ import {
   FaMicrophone,
   FaPaperPlane,
 } from 'react-icons/fa';
-import { HiSparkles } from 'react-icons/hi2';
+import { HiSparkles, HiBars3 } from 'react-icons/hi2';
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -131,7 +131,20 @@ export default function Home() {
         <div className="sidebar-backdrop" onClick={toggleSidebar} aria-hidden="true" />
       )}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <button className="new-chat" onClick={nuevoChat} type="button">
+        <div className="brand">
+          <button
+            className="outline-btn outline-btn--icon"
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Alternar menú"
+          >
+            <HiBars3 size={18} />
+          </button>
+          <PolariaIcon size={22} className="brand-icon" />
+          <span className="brand-name">Polaria AI</span>
+        </div>
+
+        <button className="new-chat outline-btn" onClick={nuevoChat} type="button">
           <FaPenSquare size={16} />
           Nuevo chat
         </button>
@@ -177,10 +190,15 @@ export default function Home() {
 
       <main className="main">
         <header className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div className="topbar-left">
             {(isSidebarCollapsed || isMobile) && (
-              <button className="icon-btn" onClick={toggleSidebar} aria-label="Abrir menú" type="button">
-                ☰
+              <button
+                className="outline-btn outline-btn--icon"
+                type="button"
+                onClick={toggleSidebar}
+                aria-label="Abrir menú"
+              >
+                <HiBars3 size={18} />
               </button>
             )}
             <h2 className="topbar-title">
@@ -191,7 +209,7 @@ export default function Home() {
           <div className="topbar-actions">
             <WmsLinkButton compact={isMobile} />
             <PWAInstallButton compact={isMobile} />
-            <button className="login-btn" type="button" onClick={() => setShowLogoutForm(true)}>
+            <button className="outline-btn" type="button" onClick={() => setShowLogoutForm(true)}>
               Cerrar sesión
             </button>
           </div>

@@ -32,7 +32,7 @@ export default function WmsLinkButton({ compact = false }) {
       <a
         href={buildWmsReturnUrl()}
         onClick={handleClick}
-        className={`wms-link-btn${compact ? " wms-link-btn--compact" : ""}${isLoading ? " wms-link-btn--loading" : ""}`}
+        className={`outline-btn${compact ? " outline-btn--compact" : ""}${isLoading ? " outline-btn--loading" : ""}`}
         aria-label="Ir a Polaria WMS"
         aria-busy={isLoading}
         aria-disabled={isLoading}

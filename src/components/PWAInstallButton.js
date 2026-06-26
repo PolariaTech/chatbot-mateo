@@ -86,7 +86,7 @@ export default function PWAInstallButton({ compact = false }) {
     <>
       <button
         type="button"
-        className={`install-btn${compact ? " install-btn--compact" : ""}`}
+        className={`outline-btn${compact ? " outline-btn--compact" : ""}`}
         onClick={handleInstall}
         aria-label="Instalar app"
       >
