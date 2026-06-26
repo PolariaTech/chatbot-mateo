@@ -19,6 +19,7 @@ import {
   FaPaperclip,
   FaMicrophone,
   FaPaperPlane,
+  FaSignOutAlt,
 } from 'react-icons/fa';
 import { HiSparkles, HiBars3 } from 'react-icons/hi2';
 
@@ -225,7 +226,8 @@ export default function Home() {
           <div className="topbar-actions">
             <WmsLinkButton compact={isMobile} />
             <PWAInstallButton compact={isMobile} />
-            <button className="outline-btn" type="button" onClick={() => setShowLogoutForm(true)}>
+            <button className="logout-btn" type="button" onClick={() => setShowLogoutForm(true)}>
+              <FaSignOutAlt size={16} aria-hidden="true" />
               Cerrar sesión
             </button>
           </div>
