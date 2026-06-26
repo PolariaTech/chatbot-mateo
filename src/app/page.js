@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
 import PolariaIcon from '../components/PolariaIcon';
 import LogoutForm from '../components/LogoutForm';
 import PWAInstallButton from '../components/PWAInstallButton';
@@ -11,10 +10,20 @@ import LoginForm from '../components/LoginForm';
 import { useChat } from '../hooks/useChat';
 import FormattedMessage from '../components/FormattedMessage';
 
-import { FaWarehouse, FaBrain , FaChartBar  } from 'react-icons/fa';
+import {
+  FaPenSquare,
+  FaCog,
+  FaUsers,
+  FaLink,
+  FaChartBar,
+  FaPaperclip,
+  FaMicrophone,
+  FaPaperPlane,
+} from 'react-icons/fa';
+import { HiSparkles } from 'react-icons/hi2';
 
 export default function Home() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showLogoutForm, setShowLogoutForm] = useState(false);
   const chatEndRef = useRef(null);
@@ -78,6 +87,18 @@ export default function Home() {
     }
   };
 
+  const displayName = isAuthenticated ? (user.nombre || user.username || 'Usuario') : 'Usuario';
+  const userDomain = isAuthenticated
+    ? (user.email?.split('@')[1] || user.codigoEmpresa || 'polaria.tech')
+    : '';
+
+  const QUICK_ACTIONS = [
+    { icon: FaCog, label: 'Crear una nueva configuración' },
+    { icon: FaUsers, label: 'Asignar usuarios a un grupo' },
+    { icon: FaLink, label: 'Revisar integraciones activas' },
+    { icon: FaChartBar, label: 'Generar reporte de actividad' },
+  ];
+
   if (!isReady) {
     return (
       <div className="sso-page">
@@ -110,15 +131,11 @@ export default function Home() {
         <div className="sidebar-backdrop" onClick={toggleSidebar} aria-hidden="true" />
       )}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="brand">
-          <button className="icon-btn" onClick={toggleSidebar}>☰</button>
-          <PolariaIcon size={22} className="brand-icon" />
-          <span>Polaria AI</span>
-        </div>
+        <button className="new-chat" onClick={nuevoChat} type="button">
+          <FaPenSquare size={16} />
+          Nuevo chat
+        </button>
 
-        <button className="new-chat" onClick={nuevoChat}>+ Nuevo Chat</button>
-
-        <div className="section-title">Conversaciones</div>
         {persistError && (
           <div className="history-empty history-empty--error">{persistError}</div>
         )}
@@ -127,7 +144,7 @@ export default function Home() {
             <div className="history-empty">Cargando conversaciones…</div>
           )}
           {!isLoadingConversaciones && conversaciones.length === 0 && (
-            <div className="history-empty">Aún no hay conversaciones.</div>
+            <div className="history-empty">Sin conversaciones aún</div>
           )}
           {conversaciones.map((conversacion) => (
             <button
@@ -141,16 +158,18 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="user-panel">
-          <div className="avatar">
-            {isAuthenticated ? (user.nombre || user.username || '?').charAt(0).toUpperCase() : '?'}
-          </div>
-          <div>
-            <div className="user-name">
-              {isAuthenticated ? user.nombre || user.username : 'Invitado'}
+        <div className="sidebar-footer">
+          <div className="user-panel">
+            <div className="avatar">
+              {isAuthenticated ? (user.nombre || user.username || '?').charAt(0).toUpperCase() : '?'}
             </div>
-            <div className="user-role">
-              {isAuthenticated ? user.role || user.codigoEmpresa || 'Usuario' : 'Sin sesión'}
+            <div>
+              <div className="user-name">
+                {isAuthenticated ? user.nombre || user.username : 'Invitado'}
+              </div>
+              <div className="user-role">
+                {isAuthenticated ? userDomain : 'Sin sesión'}
+              </div>
             </div>
           </div>
         </div>
@@ -160,7 +179,9 @@ export default function Home() {
         <header className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             {(isSidebarCollapsed || isMobile) && (
-              <button className="icon-btn" onClick={toggleSidebar} aria-label="Abrir menú">☰</button>
+              <button className="icon-btn" onClick={toggleSidebar} aria-label="Abrir menú" type="button">
+                ☰
+              </button>
             )}
             <h2 className="topbar-title">
               <PolariaIcon size={22} />
@@ -170,63 +191,33 @@ export default function Home() {
           <div className="topbar-actions">
             <WmsLinkButton compact={isMobile} />
             <PWAInstallButton compact={isMobile} />
-            <button className="login-btn" onClick={() => setShowLogoutForm(true)}>
+            <button className="login-btn" type="button" onClick={() => setShowLogoutForm(true)}>
               Cerrar sesión
             </button>
           </div>
         </header>
 
         {showWelcome && (
-         <section className="welcome">
-         <div className="hero-logo">
-           <Image
-             src="/images/logo.png"
-             alt="Polaria AI"
-             width={360}
-             height={90}
-             priority
-             className="hero-logo__img"
-           />
-         </div>
-         
-         <h1>¿Cómo puedo ayudarte hoy?</h1>
-         
-         {/* Subtítulo descriptivo sobre lo que hace Mateo */}
-         <p className="welcome-subtitle">
-            Soy Mateo. Una IA estratégica para el control inteligente de tus ventas, compras y utilidades.
-         </p>
-       
-         {/* Contenedor de tarjetas adaptado al estilo de lista de image_36b6df.png */}
-         <div className="cards-list">
-           
-           <div className="card-item">
-             <div className="card-avatar card-avatar--sales"> <FaWarehouse size={24} /></div>
-             <div className="card-content">
-               <h3>Consulta Instantánea de Inventarios</h3>
-               <p>Información precisa y actualizada para decisiones rápidas.</p>
-             </div>
-           </div>
-       
-           <div className="card-item">
-             <div className="card-avatar card-avatar--purchases"> <FaBrain size={24} /></div>
-             <div className="card-content">
-               <h3>Conocimiento y Gestión del Negocio</h3>
-               <p>Insights diarios para una administración con visión de futuro.</p>
-             </div>
-           </div>
-       
-         
-       
-           <div className="card-item">
-             <div className="card-avatar card-avatar--reports"><FaChartBar size={24} /></div>
-             <div className="card-content">
-               <h3>Disponibilidad Total de Informes</h3>
-               <p>Acceso inmediato a informes detallados y listos para la toma de decisiones.</p>
-             </div>
-           </div>
-       
-         </div>
-       </section>
+          <section className="welcome">
+            <div className="welcome-hero">
+              <div className="welcome-hero__icon">
+                <HiSparkles size={28} />
+              </div>
+              <h1 className="welcome-hero__greeting">
+                Hola, <span className="welcome-hero__name">{displayName}</span>
+              </h1>
+              <p className="welcome-hero__subtitle">¿En qué puedo ayudarte hoy?</p>
+            </div>
+
+            <div className="action-grid">
+              {QUICK_ACTIONS.map(({ icon: Icon, label }) => (
+                <div key={label} className="action-btn">
+                  <Icon size={18} className="action-btn__icon" />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {!showWelcome && (
@@ -258,17 +249,32 @@ export default function Home() {
 
         <footer className="composer">
           <div className="composer-inner">
+            <button className="composer-icon-btn" type="button" aria-label="Adjuntar archivo">
+              <FaPaperclip size={18} />
+            </button>
             <input
               type="text"
-              placeholder="Pregunta cualquier cosa..."
+              placeholder="Escribe un mensaje a Mateo IA..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
             />
-            <button onClick={enviarMensaje} disabled={isSending}>
-              {isSending ? 'Enviando…' : 'Enviar'}
+            <button className="composer-icon-btn" type="button" aria-label="Entrada de voz">
+              <FaMicrophone size={18} />
+            </button>
+            <button
+              className="composer-send"
+              type="button"
+              onClick={() => enviarMensaje()}
+              disabled={isSending}
+              aria-label="Enviar mensaje"
+            >
+              <FaPaperPlane size={16} />
             </button>
           </div>
+          <p className="composer-disclaimer">
+            Mateo IA puede cometer errores. Verifica la información importante.
+          </p>
         </footer>
       </main>
 

@@ -150,8 +150,8 @@ export function useChat({
     [accessToken, canPersist],
   );
 
-  const enviarMensaje = async () => {
-    const texto = inputValue.trim();
+  const enviarMensaje = async (textoOverride) => {
+    const texto = (typeof textoOverride === 'string' ? textoOverride : inputValue).trim();
     if (!texto || isSending) return;
 
     if (!isAuthenticated || !user) {
