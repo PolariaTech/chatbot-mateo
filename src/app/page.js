@@ -21,7 +21,7 @@ import {
   FaPaperPlane,
   FaSignOutAlt,
 } from 'react-icons/fa';
-import { HiSparkles, HiBars3 } from 'react-icons/hi2';
+import { HiBars3 } from 'react-icons/hi2';
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -89,6 +89,7 @@ export default function Home() {
   };
 
   const displayName = isAuthenticated ? (user.nombre || user.username || 'Usuario') : 'Usuario';
+  const userInitial = displayName.charAt(0).toUpperCase();
   const userDomain = isAuthenticated
     ? (user.email?.split('@')[1] || user.codigoEmpresa || 'polaria.tech')
     : '';
@@ -236,8 +237,8 @@ export default function Home() {
         {showWelcome && (
           <section className="welcome">
             <div className="welcome-hero">
-              <div className="welcome-hero__icon">
-                <HiSparkles size={28} />
+              <div className="welcome-hero__avatar" aria-hidden="true">
+                {userInitial}
               </div>
               <h1 className="welcome-hero__greeting">
                 Hola, <span className="welcome-hero__name">{displayName}</span>
