@@ -157,7 +157,7 @@ export default function Home() {
           >
             <HiBars3 size={18} />
           </button>
-          <PolariaIcon size={22} className="brand-icon" />
+          <PolariaIcon size={40} className="brand-icon" />
           <span className="brand-name">Polaria AI</span>
         </div>
 
@@ -219,7 +219,7 @@ export default function Home() {
               </button>
             )}
             <h2 className="topbar-title">
-              <PolariaIcon size={22} />
+              <PolariaIcon size={40} />
               Mateo IA
             </h2>
           </div>
@@ -276,7 +276,7 @@ export default function Home() {
                 {msg.tipo === 'ia' ? (
                   <>
                     <div className="message-header">
-                      <PolariaIcon size={18} />
+                      <PolariaIcon size={34} />
                       Mateo
                     </div>
                     <FormattedMessage text={msg.texto} />
