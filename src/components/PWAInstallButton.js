@@ -97,7 +97,7 @@ export default function PWAInstallButton({ compact = false }) {
       {showHint && (
         <div className="install-hint-overlay" onClick={() => setShowHint(false)}>
           <div className="install-hint" onClick={(event) => event.stopPropagation()}>
-            <h3>Instalar Polaria AI</h3>
+            <h3>Instalar Polaria Mateo</h3>
             {isIOSDevice ? (
               <p>
                 En Safari, toca el botón <FaShareSquare aria-hidden="true" /> Compartir

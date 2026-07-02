@@ -158,7 +158,7 @@ export default function Home() {
             <HiBars3 size={18} />
           </button>
           <PolariaIcon size={40} className="brand-icon" />
-          <span className="brand-name">Polaria AI</span>
+          <span className="brand-name">Polaria Mateo</span>
         </div>
 
         <button className="new-chat outline-btn" onClick={nuevoChat} type="button">

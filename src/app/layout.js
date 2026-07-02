@@ -2,14 +2,14 @@ import "../styles/globals.css";
 import PWARegister from "../components/PWARegister";
 
 export const metadata = {
-  applicationName: "Polaria AI",
-  title: "Polaria AI",
+  applicationName: "Polaria Mateo",
+  title: "Polaria Mateo",
   description: "Asistente Virtual Mateo - Polaria Tech",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Polaria AI",
+    title: "Polaria Mateo",
   },
   icons: {
     icon: [
