@@ -315,9 +315,6 @@ export default function Home() {
               <FaPaperPlane size={16} />
             </button>
           </div>
-          <p className="composer-disclaimer">
-            Mateo IA puede cometer errores. Verifica la información importante.
-          </p>
         </footer>
       </main>
 
