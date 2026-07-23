@@ -5,9 +5,67 @@ const EMOJI_HEADER_RE = /^(\p{Extended_Pictographic})\s*(.+)$/u;
 const TITLE_HINT_RE = /reporte|resumen|maestro|informe|dashboard/i;
 const CURRENCY_RE = /(\$[\d,]+(?:\.\d{2})?)(\s*(?:MXN|USD|EUR))?/gi;
 const BOLD_SPLIT_RE = /(\*\*.+?\*\*)/g;
+const URL_RE = /(https?:\/\/[^\s<>"']+)/gi;
+const URL_TRAILING_PUNCT_RE = /[.,;:!?)\]}>]+$/;
 
 function stripStrayBoldMarkers(text) {
   return text.replace(/\*\*/g, '');
+}
+
+function linkifyUrls(text, keyPrefix = '') {
+  if (!text) return text;
+
+  const cleaned = stripStrayBoldMarkers(text);
+  const parts = [];
+  let lastIndex = 0;
+  let key = 0;
+
+  for (const match of cleaned.matchAll(URL_RE)) {
+    let url = match[0];
+    const start = match.index ?? 0;
+    let trailing = '';
+
+    const punctMatch = url.match(URL_TRAILING_PUNCT_RE);
+    if (punctMatch) {
+      trailing = punctMatch[0];
+      url = url.slice(0, -trailing.length);
+    }
+
+    if (!url) continue;
+
+    if (start > lastIndex) {
+      let before = cleaned.slice(lastIndex, start);
+      // Space before opening parenthesis: "texto(url" → "texto (url"
+      before = before.replace(/(\S)\($/u, '$1 (');
+      parts.push(before);
+    }
+
+    parts.push(
+      <a
+        key={`${keyPrefix}u${key++}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="message-report-link"
+      >
+        Reporte
+      </a>
+    );
+
+    if (trailing) {
+      parts.push(trailing);
+    }
+
+    lastIndex = start + match[0].length;
+  }
+
+  if (parts.length === 0) return cleaned;
+
+  if (lastIndex < cleaned.length) {
+    parts.push(cleaned.slice(lastIndex));
+  }
+
+  return parts;
 }
 
 function renderCurrencySpans(text, keyPrefix = '') {
@@ -20,7 +78,7 @@ function renderCurrencySpans(text, keyPrefix = '') {
     const start = match.index ?? 0;
 
     if (start > lastIndex) {
-      parts.push(stripStrayBoldMarkers(text.slice(lastIndex, start)));
+      parts.push(linkifyUrls(text.slice(lastIndex, start), `${keyPrefix}t${key}-`));
     }
 
     parts.push(
@@ -34,11 +92,11 @@ function renderCurrencySpans(text, keyPrefix = '') {
   }
 
   if (parts.length === 0) {
-    return <span className="report-metric__amount">{stripStrayBoldMarkers(text)}</span>;
+    return <span className="report-metric__amount">{linkifyUrls(text, keyPrefix)}</span>;
   }
 
   if (lastIndex < text.length) {
-    parts.push(stripStrayBoldMarkers(text.slice(lastIndex)));
+    parts.push(linkifyUrls(text.slice(lastIndex), `${keyPrefix}t${key}-`));
   }
 
   return parts;
@@ -48,14 +106,14 @@ function renderFormattedText(text, { highlightCurrency = false } = {}) {
   if (!text) return null;
 
   const pieces = text.split(BOLD_SPLIT_RE).filter((piece) => piece.length > 0);
-  if (pieces.length === 0) return stripStrayBoldMarkers(text);
+  if (pieces.length === 0) return linkifyUrls(text);
 
   return pieces.map((piece, index) => {
     const boldMatch = piece.match(/^\*\*(.+)\*\*$/s);
     const content = boldMatch ? boldMatch[1] : piece;
     const rendered = highlightCurrency
       ? renderCurrencySpans(content, `${index}-`)
-      : stripStrayBoldMarkers(content);
+      : linkifyUrls(content, `${index}-`);
 
     if (boldMatch) {
       return <strong key={index}>{rendered}</strong>;

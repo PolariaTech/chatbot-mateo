@@ -566,6 +566,18 @@ body {
   color: var(--w);
 }
 
+.message-report-link {
+  color: var(--teal);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin: 0 0.35em;
+}
+
+.message-report-link:hover {
+  color: rgba(0, 229, 204, 0.85);
+}
+
 .message-content--report {
   display: flex;
   flex-direction: column;
