@@ -572,59 +572,71 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     setExportandoTexto('Generando Excel…');
 
     try {
-      const pagina = 1000;
-      const todas = [];
-      let offset = 0;
-      let total = truncated ? totalRegistros : (rows?.length || 0);
+      const response = await fetch('/api/reporteventas/excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          consolidado: esConsolidado,
+        }),
+      });
 
-      if (!truncated && rows?.length) {
-        todas.push(...rows);
-      } else {
-        while (true) {
-          setExportandoTexto(
-            total
-              ? `Descargando ${Math.min(offset, total).toLocaleString('es-MX')} / ${total.toLocaleString('es-MX')}…`
-              : 'Descargando…',
-          );
-          const data = await pedirTablero({ offset, limite: pagina });
-          const chunk = data.rows || [];
-          total = Number(data.total) || total;
-          todas.push(...chunk);
-          offset += chunk.length;
-          if (!chunk.length || chunk.length < pagina || todas.length >= total) break;
-        }
+      const contentType = response.headers.get('content-type') || '';
+
+      if (response.status === 401) {
+        throw new Error('La sesión expiró. Recarga e inicia sesión de nuevo.');
       }
 
-      if (!todas.length) {
-        alert('No hay datos para exportar.');
-        return;
+      if (!response.ok || !contentType.includes('spreadsheet')) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el Excel');
       }
 
-      setExportandoTexto('Armando el archivo…');
-
-      if (esConsolidado) {
-        const ventasAll = consolidarVentas(todas);
-        escribirExcelVentas({
-          filas: ventasAll,
-          columnas: COLUMNAS_CONSOLIDADO,
-          numericas: mapaNumericas(COLUMNAS_CONSOLIDADO, ventasAll),
-          sufijo: 'por_venta',
-          fechaInicio,
-          fechaFin,
-        });
-      } else {
-        const cols = Object.keys(todas[0]).filter((column) => !OCULTAR_COLUMNAS.test(column));
-        escribirExcelVentas({
-          filas: todas,
-          columnas: cols,
-          numericas: mapaNumericas(cols, todas),
-          sufijo: 'detalle',
-          fechaInicio,
-          fechaFin,
-        });
-      }
+      const blob = await response.blob();
+      const sufijo = esConsolidado ? 'por_venta' : 'detalle';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch (error) {
       console.error(error);
+      if (rows?.length) {
+        try {
+          if (esConsolidado) {
+            const ventasAll = consolidarVentas(rows);
+            escribirExcelVentas({
+              filas: ventasAll,
+              columnas: COLUMNAS_CONSOLIDADO,
+              numericas: mapaNumericas(COLUMNAS_CONSOLIDADO, ventasAll),
+              sufijo: 'por_venta',
+              fechaInicio,
+              fechaFin,
+            });
+          } else {
+            escribirExcelVentas({
+              filas: rows,
+              columnas,
+              numericas,
+              sufijo: 'detalle',
+              fechaInicio,
+              fechaFin,
+            });
+          }
+          alert(`${error.message || 'No se pudo armar el Excel completo.'} Se descargaron los registros en pantalla.`);
+          return;
+        } catch (fallbackError) {
+          console.error(fallbackError);
+        }
+      }
       alert(error.message || 'No fue posible generar el archivo Excel.');
     } finally {
       setExportando(false);
