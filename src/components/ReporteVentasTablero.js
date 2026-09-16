@@ -768,7 +768,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
               <div className={`rp-tab-panel${tab === 'dashboard' ? ' rp-active' : ''}`}>
                 {truncated && (
                   <div className="rp-warning">
-                    Los indicadores usan los primeros 5,000 registros. El Excel descarga el rango completo.
+                    Los indicadores usan los primeros 5,000 registros.
                   </div>
                 )}
                 {kpis && (
