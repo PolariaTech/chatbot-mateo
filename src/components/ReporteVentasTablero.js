@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
 
-const EXCLUIR_SUMA = /^(id_|folio|fecha|status|codigo|nombre|contacto|telefono|producto|descripcion|unidad|comprador|es_|requiere)/i;
+const EXCLUIR_SUMA = /^(id_|folio|fecha|status|codigo|nombre|contacto|telefono|producto|descripcion|unidad|comprador|es_|requiere|forma_pago|metodo_pago)/i;
 const OCULTAR_COLUMNAS = /^(id_venta|id_comprador|id_line_item|id_producto|comprador_activo|es_primario|es_secundario|unidad_visualizacion|requiere_lote|producto_activo)$/i;
 const RATIOS = {
   precio_unitario: ['importe_line_item_mxn', 'cantidad_line_item'],
@@ -29,6 +29,8 @@ const COLUMNAS_CONSOLIDADO = [
   'folio',
   'fecha_venta',
   'status_pago',
+  'forma_pago',
+  'metodo_pago',
   'codigo_comprador',
   'nombre_comprador',
   'contacto_comprador',
@@ -38,6 +40,34 @@ const COLUMNAS_CONSOLIDADO = [
   'cantidad_line_item',
   'importe_line_item_mxn',
 ];
+const FORMA_PAGO = {
+  '01': 'Efectivo',
+  '02': 'Cheque nominativo',
+  '03': 'Transferencia electrónica',
+  '04': 'Tarjeta de crédito',
+  '05': 'Monedero electrónico',
+  '06': 'Dinero electrónico',
+  '08': 'Vales de despensa',
+  '12': 'Dación en pago',
+  '13': 'Pago por subrogación',
+  '14': 'Pago por consignación',
+  '15': 'Condonación',
+  '17': 'Compensación',
+  '23': 'Novación',
+  '24': 'Confusión',
+  '25': 'Remisión de deuda',
+  '26': 'Prescripción o caducidad',
+  '27': 'A satisfacción del acreedor',
+  '28': 'Tarjeta de débito',
+  '29': 'Tarjeta de servicios',
+  '30': 'Aplicación de anticipos',
+  '31': 'Intermediario de pagos',
+  '99': 'Por definir',
+};
+const METODO_PAGO = {
+  PUE: 'Pago en una sola exhibición',
+  PPD: 'Pago en parcialidades o diferido',
+};
 
 function esFechaIso(valor) {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor);
@@ -147,6 +177,16 @@ function formatoCelda(valor, columna) {
     const iso = texto.slice(0, 10);
     return esFechaIso(iso) ? isoToDmy(iso) : texto;
   }
+  if (columna === 'forma_pago') {
+    const codigo = String(valor).trim().padStart(2, '0');
+    const etiqueta = FORMA_PAGO[codigo] || FORMA_PAGO[String(valor).trim()];
+    return etiqueta ? `${String(valor).trim()} — ${etiqueta}` : String(valor);
+  }
+  if (columna === 'metodo_pago') {
+    const codigo = String(valor).trim().toUpperCase();
+    const etiqueta = METODO_PAGO[codigo];
+    return etiqueta ? `${codigo} — ${etiqueta}` : String(valor);
+  }
   return String(valor);
 }
 
@@ -162,6 +202,8 @@ function consolidarVentas(rows) {
         folio: row.folio,
         fecha_venta: row.fecha_venta,
         status_pago: row.status_pago,
+        forma_pago: row.forma_pago,
+        metodo_pago: row.metodo_pago,
         codigo_comprador: row.codigo_comprador,
         nombre_comprador: row.nombre_comprador,
         contacto_comprador: row.contacto_comprador,
@@ -248,6 +290,33 @@ function agruparSuma(rows, etiquetaFn, valorKey) {
     .slice(0, 8);
 }
 
+function escribirExcelVentas({ filas, columnas, numericas, sufijo, fechaInicio, fechaFin }) {
+  const worksheet = XLSX.utils.json_to_sheet(
+    filas.map((row) => {
+      const out = {};
+      columnas.forEach((column) => {
+        out[column] = numericas[column] ? row[column] : formatoCelda(row[column], column);
+      });
+      return out;
+    }),
+  );
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sufijo === 'por_venta' ? 'Por venta' : 'Detalle');
+
+  worksheet['!cols'] = columnas.map((column) => {
+    let maxLength = column.length;
+    filas.forEach((row) => {
+      let value = row[column];
+      if (value === null || value === undefined) value = '';
+      if (typeof value === 'object') value = JSON.stringify(value);
+      maxLength = Math.max(maxLength, String(value).length);
+    });
+    return { wch: Math.min(maxLength + 2, 50) };
+  });
+  worksheet['!autofilter'] = { ref: worksheet['!ref'] };
+  XLSX.writeFile(workbook, `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`);
+}
+
 export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) {
   const [fechaInicio, setFechaInicio] = useState(fechaAyerIso);
   const [fechaFin, setFechaFin] = useState(fechaAyerIso);
@@ -261,6 +330,9 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const [orden, setOrden] = useState({ col: null, dir: 1 });
   const [filtrosVenta, setFiltrosVenta] = useState({});
   const [ordenVenta, setOrdenVenta] = useState({ col: null, dir: 1 });
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [truncated, setTruncated] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   const chartImporteRef = useRef(null);
   const chartCantidadRef = useRef(null);
@@ -422,38 +494,49 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     setLoading(true);
 
     try {
-      const response = await fetch('/api/reporteventas/tablero', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.status === 401) {
-        onSessionInvalid?.();
-        throw new Error(data.error || 'Sesión inválida.');
-      }
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Error ejecutando la consulta');
-      }
-
+      const data = await pedirTablero();
       if (cargaId !== cargaIdRef.current) return;
-      setRows(data.rows || []);
+      const filas = data.rows || [];
+      setRows(filas);
+      setTotalRegistros(Number(data.total) || filas.length);
+      setTruncated(Boolean(data.truncated));
     } catch (error) {
       if (cargaId !== cargaIdRef.current) return;
       setRows(null);
+      setTotalRegistros(0);
+      setTruncated(false);
       setErrorMessage(error.message || 'Error ejecutando la consulta');
     } finally {
       if (cargaId === cargaIdRef.current) setLoading(false);
     }
+  }
+
+  async function pedirTablero({ completo = false } = {}) {
+    const response = await fetch('/api/reporteventas/tablero', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        ...(completo ? { completo: true } : {}),
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      onSessionInvalid?.();
+      throw new Error(data.error || 'Sesión inválida.');
+    }
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Error ejecutando la consulta');
+    }
+
+    return data;
   }
 
   useEffect(() => {
@@ -476,45 +559,47 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     ));
   }
 
-  function exportarExcel() {
+  async function exportarExcel() {
+    if (exportando) return;
     const esConsolidado = tab === 'consolidado';
-    const visibles = esConsolidado ? filasVentasVisibles : filasVisibles;
-    const cols = esConsolidado ? COLUMNAS_CONSOLIDADO : columnas;
-    const nums = esConsolidado ? numericasVenta : numericas;
-    if (!visibles.length) {
-      alert('No hay datos para exportar.');
-      return;
-    }
+    setExportando(true);
 
     try {
-      const worksheet = XLSX.utils.json_to_sheet(
-        visibles.map((row) => {
-          const out = {};
-          cols.forEach((column) => {
-            out[column] = nums[column] ? row[column] : formatoCelda(row[column], column);
-          });
-          return out;
-        }),
-      );
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, esConsolidado ? 'Por venta' : 'Detalle');
+      const data = truncated
+        ? await pedirTablero({ completo: true })
+        : { rows };
+      const todas = data.rows || [];
+      if (!todas.length) {
+        alert('No hay datos para exportar.');
+        return;
+      }
 
-      worksheet['!cols'] = cols.map((column) => {
-        let maxLength = column.length;
-        visibles.forEach((row) => {
-          let value = row[column];
-          if (value === null || value === undefined) value = '';
-          if (typeof value === 'object') value = JSON.stringify(value);
-          maxLength = Math.max(maxLength, String(value).length);
+      if (esConsolidado) {
+        const ventasAll = consolidarVentas(todas);
+        escribirExcelVentas({
+          filas: ventasAll,
+          columnas: COLUMNAS_CONSOLIDADO,
+          numericas: mapaNumericas(COLUMNAS_CONSOLIDADO, ventasAll),
+          sufijo: 'por_venta',
+          fechaInicio,
+          fechaFin,
         });
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet['!autofilter'] = { ref: worksheet['!ref'] };
-      const sufijo = esConsolidado ? 'por_venta' : 'detalle';
-      XLSX.writeFile(workbook, `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`);
+      } else {
+        const cols = Object.keys(todas[0]).filter((column) => !OCULTAR_COLUMNAS.test(column));
+        escribirExcelVentas({
+          filas: todas,
+          columnas: cols,
+          numericas: mapaNumericas(cols, todas),
+          sufijo: 'detalle',
+          fechaInicio,
+          fechaFin,
+        });
+      }
     } catch (error) {
       console.error(error);
-      alert('No fue posible generar el archivo Excel.');
+      alert(error.message || 'No fue posible generar el archivo Excel.');
+    } finally {
+      setExportando(false);
     }
   }
 
@@ -532,6 +617,10 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const countVisibles = esConsolidado ? filasVentasVisibles.length : filasVisibles.length;
   const countTotal = esConsolidado ? ventas.length : rows?.length || 0;
   const etiquetaConteo = esConsolidado ? 'ventas' : 'registros';
+  const etiquetaConteoPantalla = `${countVisibles} de ${countTotal} ${etiquetaConteo} en pantalla`;
+  const etiquetaConteoCompleto = truncated && totalRegistros > (rows?.length || 0)
+    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango (Excel trae todos)`
+    : etiquetaConteoPantalla;
 
   return (
     <div className="reportes-root" lang="es-MX">
@@ -648,11 +737,16 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
                 <h2>Resultado</h2>
                 <div className="rp-result-actions">
                   <span className="rp-row-count">
-                    {countVisibles} de {countTotal} {etiquetaConteo}
+                    {etiquetaConteoCompleto}
                   </span>
                   {tab !== 'dashboard' && (
-                    <button className="rp-export" type="button" onClick={exportarExcel}>
-                      Exportar Excel
+                    <button
+                      className="rp-export"
+                      type="button"
+                      disabled={exportando || loading}
+                      onClick={exportarExcel}
+                    >
+                      {exportando ? 'Generando Excel…' : 'Exportar Excel'}
                     </button>
                   )}
                 </div>
@@ -709,6 +803,11 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
               </div>
 
               <div className={`rp-tab-panel${tab === 'dashboard' ? ' rp-active' : ''}`}>
+                {truncated && (
+                  <div className="rp-warning">
+                    Los indicadores usan los primeros 5,000 registros. El Excel descarga el rango completo.
+                  </div>
+                )}
                 {kpis && (
                   <div className="rp-kpi-grid">
                     <div className="rp-kpi">
@@ -735,7 +834,11 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
                       <div className="rp-kpi-label">Líneas</div>
                       <div className="rp-kpi-caption">Partidas vendidas</div>
                       <div className="rp-kpi-value">{rows.length.toLocaleString('es-MX')}</div>
-                      <div className="rp-kpi-sub">Registros en vista_ventas</div>
+                      <div className="rp-kpi-sub">
+                        {truncated && totalRegistros > rows.length
+                          ? `Primeros ${rows.length.toLocaleString('es-MX')} de ${totalRegistros.toLocaleString('es-MX')}`
+                          : 'Partidas vendidas'}
+                      </div>
                     </div>
                   </div>
                 )}

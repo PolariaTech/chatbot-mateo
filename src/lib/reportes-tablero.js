@@ -104,6 +104,7 @@ async function consultarVista({
   fechaInicio,
   fechaFin,
   uniqueKey,
+  limite,
 }) {
   const baseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -116,6 +117,7 @@ async function consultarVista({
   const page = 1000;
   const maxPaginas = 100;
   let from = 0;
+  let total = null;
   const queryParts = [];
   if (fechaColumna) {
     queryParts.push(`${fechaColumna}=gte.${fechaInicio}`);
@@ -150,16 +152,27 @@ async function consultarVista({
 
     const contentRange = response.headers.get('content-range') || '';
     const totalMatch = contentRange.match(/\/(\d+|\*)$/);
-    const total = totalMatch && totalMatch[1] !== '*' ? Number(totalMatch[1]) : null;
+    total = totalMatch && totalMatch[1] !== '*' ? Number(totalMatch[1]) : total;
+    const rows = deduplicarFilas(all, uniqueKey);
+    const recortadas = limite ? rows.slice(0, limite) : rows;
     const gotAll = total != null ? all.length >= total : chunk.length < page;
-    if (gotAll) return deduplicarFilas(all, uniqueKey);
+    const reachedLimit = Boolean(limite) && recortadas.length >= limite;
+
+    if (gotAll || reachedLimit) {
+      return { rows: recortadas, total: total ?? rows.length };
+    }
     from += page;
+  }
+
+  if (limite) {
+    const rows = deduplicarFilas(all, uniqueKey);
+    return { rows: rows.slice(0, limite), total: total ?? rows.length };
   }
 
   throw new Error('Hay demasiados registros. Reduce el rango o vuelve a consultar.');
 }
 
-export async function consultarVistaVentas({ schema, fechaInicio, fechaFin }) {
+export async function consultarVistaVentas({ schema, fechaInicio, fechaFin, limite }) {
   return consultarVista({
     schema,
     vista: 'vista_ventas',
@@ -168,11 +181,12 @@ export async function consultarVistaVentas({ schema, fechaInicio, fechaFin }) {
     fechaFin,
     order: 'id_line_item.asc',
     uniqueKey: 'id_line_item',
+    limite,
   });
 }
 
 export async function consultarVistaCompras({ schema, fechaInicio, fechaFin }) {
-  return consultarVista({
+  const { rows } = await consultarVista({
     schema,
     vista: 'vista_compras',
     fechaColumna: 'fecha_compra',
@@ -181,13 +195,15 @@ export async function consultarVistaCompras({ schema, fechaInicio, fechaFin }) {
     order: 'id_line_item.asc',
     uniqueKey: 'id_line_item',
   });
+  return rows;
 }
 
 export async function consultarVistaInventario({ schema }) {
-  return consultarVista({
+  const { rows } = await consultarVista({
     schema,
     vista: 'vista_inventario',
     order: 'existencia_actual.desc,id_producto.asc,id_bodega.asc',
     uniqueKey: ['id_producto', 'id_bodega'],
   });
+  return rows;
 }

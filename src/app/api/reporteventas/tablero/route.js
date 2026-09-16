@@ -44,13 +44,22 @@ export async function POST(request) {
   }
 
   const schema = resolveReportesSchema(auth.user.codigoEmpresa);
+  const LIMITE_PANTALLA = 5000;
+  const completo = body.completo === true;
 
   try {
-    const rows = await consultarVistaVentas({ schema, fechaInicio, fechaFin });
+    const { rows, total } = await consultarVistaVentas({
+      schema,
+      fechaInicio,
+      fechaFin,
+      limite: completo ? undefined : LIMITE_PANTALLA,
+    });
     return NextResponse.json({
       success: true,
       schema,
       rows,
+      total,
+      truncated: !completo && total > rows.length,
     });
   } catch (error) {
     return NextResponse.json(
