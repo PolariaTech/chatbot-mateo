@@ -290,37 +290,6 @@ function agruparSuma(rows, etiquetaFn, valorKey) {
     .slice(0, 8);
 }
 
-function escribirExcelVentas({ filas, columnas, numericas, sufijo, fechaInicio, fechaFin }) {
-  const worksheet = XLSX.utils.json_to_sheet(
-    filas.map((row) => {
-      const out = {};
-      columnas.forEach((column) => {
-        out[column] = numericas[column] ? row[column] : formatoCelda(row[column], column);
-      });
-      return out;
-    }),
-  );
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sufijo === 'por_venta' ? 'Por venta' : 'Detalle');
-  worksheet['!cols'] = columnas.map(() => ({ wch: 22 }));
-  worksheet['!autofilter'] = { ref: worksheet['!ref'] };
-
-  const nombre = `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`;
-  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = nombre;
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
 export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) {
   const [fechaInicio, setFechaInicio] = useState(fechaAyerIso);
   const [fechaFin, setFechaFin] = useState(fechaAyerIso);
@@ -336,8 +305,6 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const [ordenVenta, setOrdenVenta] = useState({ col: null, dir: 1 });
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [truncated, setTruncated] = useState(false);
-  const [exportando, setExportando] = useState(false);
-  const [exportandoTexto, setExportandoTexto] = useState('Generando Excel…');
 
   const chartImporteRef = useRef(null);
   const chartCantidadRef = useRef(null);
@@ -565,82 +532,42 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     ));
   }
 
-  async function exportarExcel() {
-    if (exportando) return;
+  function exportarExcel() {
     const esConsolidado = tab === 'consolidado';
-    setExportando(true);
-    setExportandoTexto('Generando Excel…');
+    const visibles = esConsolidado ? filasVentasVisibles : filasVisibles;
+    const cols = esConsolidado ? COLUMNAS_CONSOLIDADO : columnas;
+    if (!visibles.length) {
+      alert('No hay datos para exportar.');
+      return;
+    }
 
     try {
-      const response = await fetch('/api/reporteventas/excel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-          consolidado: esConsolidado,
-        }),
+      const hoja = visibles.map((row) => {
+        const out = {};
+        cols.forEach((column) => {
+          out[column] = row[column];
+        });
+        return out;
       });
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (response.status === 401) {
-        throw new Error('La sesión expiró. Recarga e inicia sesión de nuevo.');
-      }
-
-      if (!response.ok || !contentType.includes('spreadsheet')) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'No se pudo generar el Excel');
-      }
-
-      const blob = await response.blob();
+      const worksheet = XLSX.utils.json_to_sheet(hoja);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, esConsolidado ? 'Por venta' : 'Detalle');
+      worksheet['!cols'] = cols.map((column) => {
+        let maxLength = column.length;
+        hoja.forEach((row) => {
+          let value = row[column];
+          if (value === null || value === undefined) value = '';
+          if (typeof value === 'object') value = JSON.stringify(value);
+          maxLength = Math.max(maxLength, String(value).length);
+        });
+        return { wch: Math.min(maxLength + 2, 50) };
+      });
+      worksheet['!autofilter'] = { ref: worksheet['!ref'] };
       const sufijo = esConsolidado ? 'por_venta' : 'detalle';
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`;
-      link.rel = 'noopener';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      XLSX.writeFile(workbook, `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`);
     } catch (error) {
       console.error(error);
-      if (rows?.length) {
-        try {
-          if (esConsolidado) {
-            const ventasAll = consolidarVentas(rows);
-            escribirExcelVentas({
-              filas: ventasAll,
-              columnas: COLUMNAS_CONSOLIDADO,
-              numericas: mapaNumericas(COLUMNAS_CONSOLIDADO, ventasAll),
-              sufijo: 'por_venta',
-              fechaInicio,
-              fechaFin,
-            });
-          } else {
-            escribirExcelVentas({
-              filas: rows,
-              columnas,
-              numericas,
-              sufijo: 'detalle',
-              fechaInicio,
-              fechaFin,
-            });
-          }
-          alert(`${error.message || 'No se pudo armar el Excel completo.'} Se descargaron los registros en pantalla.`);
-          return;
-        } catch (fallbackError) {
-          console.error(fallbackError);
-        }
-      }
-      alert(error.message || 'No fue posible generar el archivo Excel.');
-    } finally {
-      setExportando(false);
-      setExportandoTexto('Generando Excel…');
+      alert('No fue posible generar el archivo Excel.');
     }
   }
 
@@ -660,7 +587,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const etiquetaConteo = esConsolidado ? 'ventas' : 'registros';
   const etiquetaConteoPantalla = `${countVisibles} de ${countTotal} ${etiquetaConteo} en pantalla`;
   const etiquetaConteoCompleto = truncated && totalRegistros > (rows?.length || 0)
-    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango (Excel trae todos)`
+    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango`
     : etiquetaConteoPantalla;
 
   return (
@@ -781,13 +708,8 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
                     {etiquetaConteoCompleto}
                   </span>
                   {tab !== 'dashboard' && (
-                    <button
-                      className="rp-export"
-                      type="button"
-                      disabled={exportando || loading}
-                      onClick={exportarExcel}
-                    >
-                      {exportando ? exportandoTexto : 'Exportar Excel'}
+                    <button className="rp-export" type="button" onClick={exportarExcel}>
+                      Exportar Excel
                     </button>
                   )}
                 </div>
