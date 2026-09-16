@@ -45,21 +45,28 @@ export async function POST(request) {
 
   const schema = resolveReportesSchema(auth.user.codigoEmpresa);
   const LIMITE_PANTALLA = 5000;
-  const completo = body.completo === true;
+  const LIMITE_PAGINA = 1000;
+  const offset = Number.isFinite(Number(body.offset))
+    ? Math.max(0, Math.trunc(Number(body.offset)))
+    : 0;
+  const limite = body.limite != null
+    ? Math.min(LIMITE_PAGINA, Math.max(1, Math.trunc(Number(body.limite)) || LIMITE_PAGINA))
+    : LIMITE_PANTALLA;
 
   try {
     const { rows, total } = await consultarVistaVentas({
       schema,
       fechaInicio,
       fechaFin,
-      limite: completo ? undefined : LIMITE_PANTALLA,
+      limite,
+      offset,
     });
     return NextResponse.json({
       success: true,
       schema,
       rows,
       total,
-      truncated: !completo && total > rows.length,
+      truncated: offset === 0 && limite === LIMITE_PANTALLA && total > rows.length,
     });
   } catch (error) {
     return NextResponse.json(

@@ -105,6 +105,7 @@ async function consultarVista({
   fechaFin,
   uniqueKey,
   limite,
+  offset = 0,
 }) {
   const baseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -116,7 +117,7 @@ async function consultarVista({
   const all = [];
   const page = 1000;
   const maxPaginas = 100;
-  let from = 0;
+  let from = Math.max(0, Number(offset) || 0);
   let total = null;
   const queryParts = [];
   if (fechaColumna) {
@@ -155,7 +156,7 @@ async function consultarVista({
     total = totalMatch && totalMatch[1] !== '*' ? Number(totalMatch[1]) : total;
     const rows = deduplicarFilas(all, uniqueKey);
     const recortadas = limite ? rows.slice(0, limite) : rows;
-    const gotAll = total != null ? all.length >= total : chunk.length < page;
+    const gotAll = chunk.length < page || (total != null && from + chunk.length >= total);
     const reachedLimit = Boolean(limite) && recortadas.length >= limite;
 
     if (gotAll || reachedLimit) {
@@ -172,7 +173,7 @@ async function consultarVista({
   throw new Error('Hay demasiados registros. Reduce el rango o vuelve a consultar.');
 }
 
-export async function consultarVistaVentas({ schema, fechaInicio, fechaFin, limite }) {
+export async function consultarVistaVentas({ schema, fechaInicio, fechaFin, limite, offset }) {
   return consultarVista({
     schema,
     vista: 'vista_ventas',
@@ -182,6 +183,7 @@ export async function consultarVistaVentas({ schema, fechaInicio, fechaFin, limi
     order: 'id_line_item.asc',
     uniqueKey: 'id_line_item',
     limite,
+    offset,
   });
 }
 

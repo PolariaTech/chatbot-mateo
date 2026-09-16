@@ -302,19 +302,23 @@ function escribirExcelVentas({ filas, columnas, numericas, sufijo, fechaInicio, 
   );
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sufijo === 'por_venta' ? 'Por venta' : 'Detalle');
-
-  worksheet['!cols'] = columnas.map((column) => {
-    let maxLength = column.length;
-    filas.forEach((row) => {
-      let value = row[column];
-      if (value === null || value === undefined) value = '';
-      if (typeof value === 'object') value = JSON.stringify(value);
-      maxLength = Math.max(maxLength, String(value).length);
-    });
-    return { wch: Math.min(maxLength + 2, 50) };
-  });
+  worksheet['!cols'] = columnas.map(() => ({ wch: 22 }));
   worksheet['!autofilter'] = { ref: worksheet['!ref'] };
-  XLSX.writeFile(workbook, `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`);
+
+  const nombre = `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`;
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nombre;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) {
@@ -333,6 +337,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const [totalRegistros, setTotalRegistros] = useState(0);
   const [truncated, setTruncated] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [exportandoTexto, setExportandoTexto] = useState('Generando Excel…');
 
   const chartImporteRef = useRef(null);
   const chartCantidadRef = useRef(null);
@@ -511,7 +516,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     }
   }
 
-  async function pedirTablero({ completo = false } = {}) {
+  async function pedirTablero({ offset, limite } = {}) {
     const response = await fetch('/api/reporteventas/tablero', {
       method: 'POST',
       headers: {
@@ -521,7 +526,8 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
       body: JSON.stringify({
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
-        ...(completo ? { completo: true } : {}),
+        ...(offset != null ? { offset } : {}),
+        ...(limite != null ? { limite } : {}),
       }),
     });
 
@@ -563,16 +569,38 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
     if (exportando) return;
     const esConsolidado = tab === 'consolidado';
     setExportando(true);
+    setExportandoTexto('Generando Excel…');
 
     try {
-      const data = truncated
-        ? await pedirTablero({ completo: true })
-        : { rows };
-      const todas = data.rows || [];
+      const pagina = 1000;
+      const todas = [];
+      let offset = 0;
+      let total = truncated ? totalRegistros : (rows?.length || 0);
+
+      if (!truncated && rows?.length) {
+        todas.push(...rows);
+      } else {
+        while (true) {
+          setExportandoTexto(
+            total
+              ? `Descargando ${Math.min(offset, total).toLocaleString('es-MX')} / ${total.toLocaleString('es-MX')}…`
+              : 'Descargando…',
+          );
+          const data = await pedirTablero({ offset, limite: pagina });
+          const chunk = data.rows || [];
+          total = Number(data.total) || total;
+          todas.push(...chunk);
+          offset += chunk.length;
+          if (!chunk.length || chunk.length < pagina || todas.length >= total) break;
+        }
+      }
+
       if (!todas.length) {
         alert('No hay datos para exportar.');
         return;
       }
+
+      setExportandoTexto('Armando el archivo…');
 
       if (esConsolidado) {
         const ventasAll = consolidarVentas(todas);
@@ -600,6 +628,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
       alert(error.message || 'No fue posible generar el archivo Excel.');
     } finally {
       setExportando(false);
+      setExportandoTexto('Generando Excel…');
     }
   }
 
@@ -746,7 +775,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
                       disabled={exportando || loading}
                       onClick={exportarExcel}
                     >
-                      {exportando ? 'Generando Excel…' : 'Exportar Excel'}
+                      {exportando ? exportandoTexto : 'Exportar Excel'}
                     </button>
                   )}
                 </div>
