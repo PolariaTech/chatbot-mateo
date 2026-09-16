@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
+import { descargarExcelVentas } from '../lib/reporte-ventas-excel';
 
 const EXCLUIR_SUMA = /^(id_|folio|fecha|status|codigo|nombre|contacto|telefono|producto|descripcion|unidad|comprador|es_|requiere|forma_pago|metodo_pago)/i;
 const OCULTAR_COLUMNAS = /^(id_venta|id_comprador|id_line_item|id_producto|comprador_activo|es_primario|es_secundario|unidad_visualizacion|requiere_lote|producto_activo)$/i;
@@ -533,15 +534,34 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
 
   function exportarExcel() {
     const esConsolidado = tab === 'consolidado';
-    const params = new URLSearchParams({
-      fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
-    });
-    if (esConsolidado) params.set('consolidado', '1');
-    const url = `/reporteventas/exportar?${params.toString()}`;
-    const ventana = window.open(url, 'reporte_ventas_excel');
-    if (!ventana) {
-      alert('El navegador bloqueó la descarga. Permite ventanas emergentes y vuelve a intentar.');
+    if (!rows?.length) {
+      alert('No hay datos para exportar.');
+      return;
+    }
+
+    const hayMasDeCincoMil = truncated || totalRegistros > 5000;
+    if (hayMasDeCincoMil) {
+      const params = new URLSearchParams({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+      });
+      if (esConsolidado) params.set('consolidado', '1');
+      const ventana = window.open(`/reporteventas/exportar?${params.toString()}`, 'reporte_ventas_excel');
+      if (!ventana) {
+        alert('El navegador bloqueó la descarga. Permite ventanas emergentes y vuelve a intentar.');
+      }
+      return;
+    }
+
+    try {
+      descargarExcelVentas(rows, {
+        consolidado: esConsolidado,
+        fechaInicio,
+        fechaFin,
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'No fue posible generar el archivo Excel.');
     }
   }
 
@@ -561,7 +581,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const etiquetaConteo = esConsolidado ? 'ventas' : 'registros';
   const etiquetaConteoPantalla = `${countVisibles} de ${countTotal} ${etiquetaConteo} en pantalla`;
   const etiquetaConteoCompleto = truncated && totalRegistros > (rows?.length || 0)
-    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango (Excel abre una pestaña y trae todas)`
+    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango (Excel completo abre una pestaña)`
     : etiquetaConteoPantalla;
 
   return (
