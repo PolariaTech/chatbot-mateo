@@ -129,7 +129,7 @@ export default function EmbedPanel({ token, title, onClose }) {
             src={EMBED_FRAME_PATH}
             title={label}
             className="embed-panel__iframe"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
             referrerPolicy="no-referrer"
             onLoad={sendTargetUrl}
             onError={() => setLoadError(true)}

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
-import * as XLSX from 'xlsx';
 
 const EXCLUIR_SUMA = /^(id_|folio|fecha|status|codigo|nombre|contacto|telefono|producto|descripcion|unidad|comprador|es_|requiere|forma_pago|metodo_pago)/i;
 const OCULTAR_COLUMNAS = /^(id_venta|id_comprador|id_line_item|id_producto|comprador_activo|es_primario|es_secundario|unidad_visualizacion|requiere_lote|producto_activo)$/i;
@@ -534,40 +533,15 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
 
   function exportarExcel() {
     const esConsolidado = tab === 'consolidado';
-    const visibles = esConsolidado ? filasVentasVisibles : filasVisibles;
-    const cols = esConsolidado ? COLUMNAS_CONSOLIDADO : columnas;
-    if (!visibles.length) {
-      alert('No hay datos para exportar.');
-      return;
-    }
-
-    try {
-      const hoja = visibles.map((row) => {
-        const out = {};
-        cols.forEach((column) => {
-          out[column] = row[column];
-        });
-        return out;
-      });
-      const worksheet = XLSX.utils.json_to_sheet(hoja);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, esConsolidado ? 'Por venta' : 'Detalle');
-      worksheet['!cols'] = cols.map((column) => {
-        let maxLength = column.length;
-        hoja.forEach((row) => {
-          let value = row[column];
-          if (value === null || value === undefined) value = '';
-          if (typeof value === 'object') value = JSON.stringify(value);
-          maxLength = Math.max(maxLength, String(value).length);
-        });
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet['!autofilter'] = { ref: worksheet['!ref'] };
-      const sufijo = esConsolidado ? 'por_venta' : 'detalle';
-      XLSX.writeFile(workbook, `reporte_ventas_${sufijo}_${fechaInicio}_${fechaFin}.xlsx`);
-    } catch (error) {
-      console.error(error);
-      alert('No fue posible generar el archivo Excel.');
+    const params = new URLSearchParams({
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    });
+    if (esConsolidado) params.set('consolidado', '1');
+    const url = `/reporteventas/exportar?${params.toString()}`;
+    const ventana = window.open(url, 'reporte_ventas_excel');
+    if (!ventana) {
+      alert('El navegador bloqueó la descarga. Permite ventanas emergentes y vuelve a intentar.');
     }
   }
 
@@ -587,7 +561,7 @@ export default function ReporteVentasTablero({ accessToken, onSessionInvalid }) 
   const etiquetaConteo = esConsolidado ? 'ventas' : 'registros';
   const etiquetaConteoPantalla = `${countVisibles} de ${countTotal} ${etiquetaConteo} en pantalla`;
   const etiquetaConteoCompleto = truncated && totalRegistros > (rows?.length || 0)
-    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango`
+    ? `${etiquetaConteoPantalla} · ${totalRegistros.toLocaleString('es-MX')} líneas en el rango (Excel abre una pestaña y trae todas)`
     : etiquetaConteoPantalla;
 
   return (
