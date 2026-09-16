@@ -19,6 +19,58 @@ export const COLUMNAS_CONSOLIDADO_VENTAS = [
   'importe_line_item_mxn',
 ];
 
+const FORMA_PAGO = {
+  '01': 'Efectivo',
+  '02': 'Cheque nominativo',
+  '03': 'Transferencia electrónica',
+  '04': 'Tarjeta de crédito',
+  '05': 'Monedero electrónico',
+  '06': 'Dinero electrónico',
+  '08': 'Vales de despensa',
+  '12': 'Dación en pago',
+  '13': 'Pago por subrogación',
+  '14': 'Pago por consignación',
+  '15': 'Condonación',
+  '17': 'Compensación',
+  '23': 'Novación',
+  '24': 'Confusión',
+  '25': 'Remisión de deuda',
+  '26': 'Prescripción o caducidad',
+  '27': 'A satisfacción del acreedor',
+  '28': 'Tarjeta de débito',
+  '29': 'Tarjeta de servicios',
+  '30': 'Aplicación de anticipos',
+  '31': 'Intermediario de pagos',
+  '99': 'Por definir',
+};
+
+const METODO_PAGO = {
+  PUE: 'Pago en una sola exhibición',
+  PPD: 'Pago en parcialidades o diferido',
+};
+
+function formatoFormaPago(valor) {
+  if (valor == null || valor === '') return '';
+  const crudo = String(valor).trim();
+  const codigo = crudo.padStart(2, '0');
+  const etiqueta = FORMA_PAGO[codigo] || FORMA_PAGO[crudo];
+  return etiqueta ? `${crudo} — ${etiqueta}` : crudo;
+}
+
+function formatoMetodoPago(valor) {
+  if (valor == null || valor === '') return '';
+  const codigo = String(valor).trim().toUpperCase();
+  const etiqueta = METODO_PAGO[codigo];
+  return etiqueta ? `${codigo} — ${etiqueta}` : String(valor);
+}
+
+function valorCeldaExcel(column, valor) {
+  if (column === 'forma_pago') return formatoFormaPago(valor);
+  if (column === 'metodo_pago') return formatoMetodoPago(valor);
+  if (valor && typeof valor === 'object') return JSON.stringify(valor);
+  return valor ?? '';
+}
+
 function aNumero(valor) {
   if (valor === null || valor === undefined || valor === '') return null;
   if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
@@ -71,8 +123,7 @@ export function descargarExcelVentas(rows, { consolidado, fechaInicio, fechaFin 
   const hoja = filas.map((row) => {
     const out = {};
     columnas.forEach((column) => {
-      const valor = row[column];
-      out[column] = valor && typeof valor === 'object' ? JSON.stringify(valor) : valor;
+      out[column] = valorCeldaExcel(column, row[column]);
     });
     return out;
   });
@@ -80,7 +131,9 @@ export function descargarExcelVentas(rows, { consolidado, fechaInicio, fechaFin 
   const worksheet = XLSX.utils.json_to_sheet(hoja);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, consolidado ? 'Por venta' : 'Detalle');
-  worksheet['!cols'] = columnas.map(() => ({ wch: 22 }));
+  worksheet['!cols'] = columnas.map((column) => ({
+    wch: column === 'forma_pago' || column === 'metodo_pago' ? 42 : 22,
+  }));
   worksheet['!autofilter'] = { ref: worksheet['!ref'] };
 
   const sufijo = consolidado ? 'por_venta' : 'detalle';
