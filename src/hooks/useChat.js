@@ -176,7 +176,8 @@ export function useChat({
     setInputValue('');
     setIsSending(true);
 
-    const nuevosMensajes = [...messages, { tipo: 'usuario', texto }];
+    const ahora = new Date().toISOString();
+    const nuevosMensajes = [...messages, { tipo: 'usuario', texto, createdAt: ahora }];
     setMessages(nuevosMensajes);
 
     let conversacionId = activeConversacionId;
@@ -222,7 +223,7 @@ export function useChat({
         JSON.stringify(data);
       const tokensUsados = data.tokensUsados ?? data.tokens_usados ?? null;
 
-      setMessages([...nuevosMensajes, { tipo: 'ia', texto: respuestaIA }]);
+      setMessages([...nuevosMensajes, { tipo: 'ia', texto: respuestaIA, createdAt: new Date().toISOString() }]);
 
       try {
         await persistAssistantMessage({
@@ -240,7 +241,7 @@ export function useChat({
       }
     } catch {
       const errorTexto = 'Error al conectar con el servidor.';
-      setMessages([...nuevosMensajes, { tipo: 'ia', texto: errorTexto, estado: 'error' }]);
+      setMessages([...nuevosMensajes, { tipo: 'ia', texto: errorTexto, estado: 'error', createdAt: new Date().toISOString() }]);
 
       try {
         await persistAssistantMessage({

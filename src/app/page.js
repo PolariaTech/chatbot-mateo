@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import PolariaIcon from '../components/PolariaIcon';
 import LogoutForm from '../components/LogoutForm';
 import PWAInstallButton from '../components/PWAInstallButton';
 import WmsLinkButton from '../components/WmsLinkButton';
@@ -13,17 +12,59 @@ import EmbedPanel, { extractFirstUrl } from '../components/EmbedPanel';
 import { registerEmbedUrl, releaseEmbedUrl } from '../lib/embed-registry';
 
 import {
-  FaPenSquare,
+  FaPlus,
   FaWarehouse,
   FaBrain,
   FaChartBar,
   FaChartLine,
-  FaPaperclip,
   FaMicrophone,
-  FaPaperPlane,
   FaSignOutAlt,
 } from 'react-icons/fa';
-import { HiBars3 } from 'react-icons/hi2';
+
+function SidebarToggleIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.2" y="4.2" width="17.6" height="15.6" rx="3.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M9 4.2v15.6" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function MateoSparkleAvatar() {
+  return (
+    <div className="mateo-avatar" aria-hidden="true">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+      </svg>
+    </div>
+  );
+}
+
+const MESES_HISTORIAL = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+
+function formatoHistorialFecha(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  const month = MESES_HISTORIAL[d.getMonth()];
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const suffix = hours >= 12 ? 'p. m.' : 'a. m.';
+  hours = hours % 12 || 12;
+  return `${day} de ${month}, ${String(hours).padStart(2, '0')}:${minutes} ${suffix}`;
+}
+
+function formatoHora(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const suffix = hours >= 12 ? 'p. m.' : 'a. m.';
+  hours = hours % 12 || 12;
+  return `${String(hours).padStart(2, '0')}:${minutes} ${suffix}`;
+}
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -68,7 +109,7 @@ export default function Home() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isSending]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -218,12 +259,12 @@ export default function Home() {
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="brand">
           <button
-            className="outline-btn outline-btn--icon"
+            className="menu-btn"
             type="button"
             onClick={toggleSidebar}
             aria-label="Alternar menú"
           >
-            <HiBars3 size={18} />
+            <SidebarToggleIcon size={20} />
           </button>
           <button
             className="brand-home"
@@ -231,14 +272,13 @@ export default function Home() {
             onClick={handleMostrarInicio}
             aria-label="Ir al inicio"
           >
-            <PolariaIcon size={40} className="brand-icon" />
-            <span className="brand-name">Polaria Mateo</span>
+            <span className="brand-name">Historial</span>
           </button>
         </div>
 
-        <button className="new-chat outline-btn" onClick={handleNuevoChat} type="button">
-          <FaPenSquare size={16} />
-          Nuevo chat
+        <button className="new-chat" onClick={handleNuevoChat} type="button">
+          <FaPlus size={12} aria-hidden="true" />
+          Nueva conversación
         </button>
 
         {persistError && (
@@ -258,7 +298,14 @@ export default function Home() {
               className={`history-item${activeConversacionId === conversacion.idConversacion ? ' active' : ''}`}
               onClick={() => handleAbrirConversacion(conversacion.idConversacion)}
             >
-              {conversacion.titulo || 'Nueva conversación'}
+              <span className="history-item__title">
+                {conversacion.titulo || 'Nueva conversación'}
+              </span>
+              {(conversacion.updatedAt || conversacion.createdAt) && (
+                <span className="history-item__date">
+                  {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -285,12 +332,12 @@ export default function Home() {
           <div className="topbar-left">
             {(isSidebarCollapsed || isMobile) && (
               <button
-                className="outline-btn outline-btn--icon"
+                className="menu-btn"
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Abrir menú"
               >
-                <HiBars3 size={18} />
+                <SidebarToggleIcon size={20} />
               </button>
             )}
             <button
@@ -299,8 +346,21 @@ export default function Home() {
               onClick={handleMostrarInicio}
               aria-label="Ir al inicio"
             >
-              <PolariaIcon size={40} />
-              Mateo IA
+              <span className="topbar-logo" aria-hidden="true">
+                <img src="/mateo-support-icon.png" alt="" width={62} height={68} />
+              </span>
+              <span className="topbar-title-text">
+                <span className="topbar-title-name">Mateo IA</span>
+                <span className="topbar-title-status">
+                  En línea
+                  {userDomain && (
+                    <>
+                      <span className="topbar-title-sep">·</span>
+                      <span className="topbar-title-domain">{userDomain}</span>
+                    </>
+                  )}
+                </span>
+              </span>
             </button>
           </div>
           <div className="topbar-actions">
@@ -345,45 +405,74 @@ export default function Home() {
 
         {!showWelcome && (
           <div className="chat">
+            <div className="chat-thread">
             {isLoadingMensajes && messages.length === 0 && (
               <div className="chat-status">Cargando mensajes…</div>
             )}
             {messages.map((msg, index) => (
               <div
                 key={index}
-                className={`message ${msg.tipo}${msg.tipo === 'ia' ? ' message--formatted' : ''}`}
+                className={`message ${msg.tipo}`}
               >
                 {msg.tipo === 'ia' ? (
                   <>
-                    <div className="message-header">
-                      <PolariaIcon size={34} />
-                      Mateo
+                    <div className="message-bubble">
+                      <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
                     </div>
-                    <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
+                    <div className="message-meta">
+                      <MateoSparkleAvatar />
+                      {msg.createdAt && (
+                        <time className="message-time" dateTime={msg.createdAt}>
+                          {formatoHora(msg.createdAt)}
+                        </time>
+                      )}
+                    </div>
                   </>
                 ) : (
-                  msg.texto
+                  <>
+                    <div className="message-bubble">{msg.texto}</div>
+                    {msg.createdAt && (
+                      <time className="message-time" dateTime={msg.createdAt}>
+                        {formatoHora(msg.createdAt)}
+                      </time>
+                    )}
+                  </>
                 )}
               </div>
             ))}
+            {isSending && (
+              <div className="message ia message--typing" aria-live="polite" aria-label="Mateo está escribiendo">
+                <MateoSparkleAvatar />
+                <div className="typing-bubble">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            )}
             <div ref={chatEndRef} />
+            </div>
           </div>
         )}
 
         <footer className="composer">
           <div className="composer-inner">
             <button className="composer-icon-btn" type="button" aria-label="Adjuntar archivo">
-              <FaPaperclip size={18} />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 15V4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                <path d="M7.5 8 12 3.5 16.5 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 20h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
             </button>
             <input
               ref={inputRef}
               type="text"
-              placeholder="Escribe un mensaje a Mateo IA..."
+              placeholder="Escribe tu mensaje..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
             />
-            <button className="composer-icon-btn" type="button" aria-label="Entrada de voz">
+            <button className="composer-icon-btn composer-icon-btn--voice" type="button" aria-label="Entrada de voz">
               <FaMicrophone size={18} />
             </button>
             <button
@@ -393,7 +482,21 @@ export default function Home() {
               disabled={isSending}
               aria-label="Enviar mensaje"
             >
-              <FaPaperPlane size={16} />
+              <svg width="15" height="15" viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
+                <path
+                  d="m22 2-7 20-4-9-9-4 20-7Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M22 2 11 13"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
             </button>
           </div>
         </footer>
