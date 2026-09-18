@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as authApi from '../lib/auth-api';
 import {
   isDirectLoginEnabled,
@@ -14,34 +14,42 @@ import {
   setStoredSession,
   clearStoredSession,
 } from '../lib/auth-storage';
+import { mergeAuthUser } from '../lib/display-name';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
   const [isReady, setIsReady] = useState(false);
 
+  const userRef = useRef(null);
+
   const applySession = useCallback((session) => {
     if (!session?.accessToken) return;
 
-    setStoredSession(session);
+    const incoming = session.user
+      ? {
+          ...session.user,
+          codigoEmpresa:
+            session.user.codigoEmpresa ??
+            session.context?.codigoEmpresa ??
+            session.context?.codigo_empresa ??
+            null,
+        }
+      : null;
+
+    const mergedUser = incoming ? mergeAuthUser(userRef.current, incoming) : userRef.current;
+    const nextSession = { ...session, user: mergedUser };
+
+    setStoredSession(nextSession);
     setAccessToken(session.accessToken);
-    setUser(
-      session.user
-        ? {
-            ...session.user,
-            codigoEmpresa:
-              session.user.codigoEmpresa ??
-              session.context?.codigoEmpresa ??
-              session.context?.codigo_empresa ??
-              null,
-          }
-        : null,
-    );
+    userRef.current = mergedUser;
+    setUser(mergedUser);
   }, []);
 
   const clearSession = useCallback(() => {
     clearStoredSession();
     setAccessToken(null);
+    userRef.current = null;
     setUser(null);
   }, []);
 
@@ -56,6 +64,10 @@ export function useAuth() {
       if (stored) {
         applySession(stored);
         setIsReady(true);
+        void authApi.enrichSessionWithMe(stored).then((enriched) => {
+          if (cancelled || !enriched?.user) return;
+          applySession(enriched);
+        });
         return;
       }
 
@@ -120,6 +132,7 @@ export function useAuth() {
 
       clearStoredSession();
       setAccessToken(null);
+      userRef.current = null;
       setUser(null);
 
       try {

@@ -5,6 +5,10 @@ import { useAuth } from '../../../hooks/useAuth';
 import { isDirectLoginEnabled, redirectToWmsLogin } from '../../../lib/auth-config';
 import LoginForm from '../../../components/LoginForm';
 import ReporteVentasExcelDescarga from '../../../components/ReporteVentasExcelDescarga';
+import {
+  SessionLoadingFallback,
+  SessionRedirectFallback,
+} from '../../../components/SessionStatusFallback';
 import '../../../styles/auth.css';
 import '../../../styles/reportes.css';
 
@@ -19,27 +23,14 @@ function ExportarContenido() {
   }, [isReady, isAuthenticated, allowDirectLogin]);
 
   if (!isReady) {
-    return (
-      <div className="sso-page">
-        <div className="sso-card">
-          <h1>Cargando…</h1>
-          <p>Preparando la sesión.</p>
-        </div>
-      </div>
-    );
+    return <SessionLoadingFallback />;
   }
 
   if (!isAuthenticated) {
     if (allowDirectLogin) {
       return <LoginForm onLoginSuccess={applySession} />;
     }
-    return (
-      <div className="sso-page">
-        <div className="sso-card">
-          <h1>Redirigiendo al inicio de sesión…</h1>
-        </div>
-      </div>
-    );
+    return <SessionRedirectFallback />;
   }
 
   return <ReporteVentasExcelDescarga accessToken={accessToken} />;
@@ -48,13 +39,7 @@ function ExportarContenido() {
 export default function ReporteVentasExportarPage() {
   return (
     <Suspense
-      fallback={
-        <div className="sso-page">
-          <div className="sso-card">
-            <h1>Cargando…</h1>
-          </div>
-        </div>
-      }
+      fallback={<SessionLoadingFallback />}
     >
       <ExportarContenido />
     </Suspense>

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import DashboardLoadingScreen from '../../components/DashboardLoadingScreen';
 import {
+  EMBED_MSG_ERROR,
   EMBED_MSG_LOAD,
   EMBED_MSG_READY,
 } from '../../lib/embed-registry';
@@ -28,6 +30,7 @@ export default function VistaEmbebidaPage() {
       const targetUrl = event.data.url;
       if (!isSafeHttpUrl(targetUrl)) {
         setStatus('error');
+        window.parent.postMessage({ type: EMBED_MSG_ERROR }, window.location.origin);
         return;
       }
 
@@ -41,22 +44,14 @@ export default function VistaEmbebidaPage() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  return (
-    <main
-      style={{
-        margin: 0,
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        background: '#050708',
-        color: 'rgba(248, 248, 246, 0.55)',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        fontSize: 14,
-      }}
-    >
-      {status === 'error'
-        ? 'No se pudo cargar la vista'
-        : 'Cargando vista…'}
-    </main>
-  );
+  if (status === 'error') {
+    return (
+      <DashboardLoadingScreen
+        title="No se pudo cargar la vista"
+        message="El enlace no es válido o el sitio bloqueó la visualización."
+      />
+    );
+  }
+
+  return <DashboardLoadingScreen />;
 }
