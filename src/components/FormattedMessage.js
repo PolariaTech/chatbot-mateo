@@ -1,10 +1,5 @@
 import React from 'react';
-import { normalizeMessageLinks } from '../lib/message-links';
-import { parseChatBlocks } from '../lib/parse-chat-table';
-import { iconKindFromHeader, stripEmojis } from '../lib/strip-emojis';
-import ChatTable from './ChatTable';
-import ChatRanking from './ChatRanking';
-import MessageIcon from './MessageIcon';
+import { normalizeMessageLinks, toEmbeddableUrl } from '../lib/message-links';
 
 const BULLET_RE = /^(\*(?!\*)|[\-•])\s*(.+)$/;
 const EMOJI_HEADER_RE = /^(\p{Extended_Pictographic})\s*(.+)$/u;
@@ -12,7 +7,7 @@ const TITLE_HINT_RE = /reporte|resumen|maestro|informe|dashboard/i;
 const CURRENCY_RE = /(\$[\d,]+(?:\.\d{2})?)(\s*(?:MXN|USD|EUR))?/gi;
 const BOLD_SPLIT_RE = /(\*\*.+?\*\*)/g;
 const URL_RE = /(https?:\/\/[^\s<>"']+)/gi;
-const MD_LINK_RE = /\[([^\]]*)\]\(\s*(https?:\/\/[^)\s]+)\s*\)/gi;
+const MD_LINK_RE = /\[([^\]]*)\]\(\s*((?:https?:\/\/[^)\s]+)|(?:\/reporte[a-z]+))\s*\)/gi;
 const URL_TRAILING_PUNCT_RE = /[.,;:!?)\]}>]+$/;
 
 function stripStrayBoldMarkers(text) {
@@ -25,6 +20,7 @@ function isUrlLikeLabel(label) {
 
 function reportLink(url, label, key, onOpenEmbed) {
   const safeLabel = isUrlLikeLabel(label) ? 'Ver Reporte' : stripStrayBoldMarkers(label).trim() || 'Ver reporte';
+  const safeUrl = toEmbeddableUrl(url) || url;
 
   if (typeof onOpenEmbed === 'function') {
     return (
@@ -32,7 +28,7 @@ function reportLink(url, label, key, onOpenEmbed) {
         key={key}
         type="button"
         className="message-report-link message-report-link--embed"
-        onClick={() => onOpenEmbed({ url, label: safeLabel })}
+        onClick={() => onOpenEmbed({ url: safeUrl, label: safeLabel })}
       >
         {safeLabel}
       </button>
@@ -42,7 +38,7 @@ function reportLink(url, label, key, onOpenEmbed) {
   return (
     <a
       key={key}
-      href={url}
+      href={safeUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="message-report-link"
@@ -178,11 +174,10 @@ function renderCurrencySpans(text, keyPrefix = '', onOpenEmbed) {
 }
 
 function renderFormattedText(text, { highlightCurrency = false, onOpenEmbed } = {}) {
-  const clean = stripEmojis(text);
-  if (!clean) return null;
+  if (!text) return null;
 
-  const pieces = clean.split(BOLD_SPLIT_RE).filter((piece) => piece.length > 0);
-  if (pieces.length === 0) return linkifyUrls(clean, '', onOpenEmbed);
+  const pieces = text.split(BOLD_SPLIT_RE).filter((piece) => piece.length > 0);
+  if (pieces.length === 0) return linkifyUrls(text, '', onOpenEmbed);
 
   return pieces.map((piece, index) => {
     const boldMatch = piece.match(/^\*\*(.+)\*\*$/s);
@@ -239,16 +234,14 @@ function parseReport(text) {
     if (headerMatch) {
       hasStructure = true;
       const [, emoji, headerText] = headerMatch;
-      const text = stripEmojis(headerText);
-      const icon = iconKindFromHeader(emoji, text);
 
-      if (!title && TITLE_HINT_RE.test(text)) {
-        title = { icon, text };
+      if (!title && TITLE_HINT_RE.test(headerText)) {
+        title = { emoji, text: headerText };
         continue;
       }
 
       pushSection();
-      currentSection = { title: { icon, text }, items: [] };
+      currentSection = { title: { emoji, text: headerText }, items: [] };
       continue;
     }
 
@@ -262,81 +255,18 @@ function parseReport(text) {
   return { type: 'report', title, sections };
 }
 
-function renderLineWithIcons(line, formatOpts) {
-  const trailing = String(line || '').match(/^(.*?)(\p{Extended_Pictographic})\s*$/u);
-  if (trailing?.[2] && trailing[1].trim()) {
-    const kind = iconKindFromHeader(trailing[2], trailing[1]);
-    return (
-      <>
-        {renderFormattedText(trailing[1], formatOpts)}
-        <MessageIcon kind={kind} className="message-icon message-icon--inline" />
-      </>
-    );
-  }
-
-  const leading = String(line || '').match(/^(\p{Extended_Pictographic})\s+(.+)$/u);
-  if (leading) {
-    const kind = iconKindFromHeader(leading[1], leading[2]);
-    return (
-      <>
-        <MessageIcon kind={kind} className="message-icon message-icon--inline" />
-        {renderFormattedText(leading[2], formatOpts)}
-      </>
-    );
-  }
-
-  return renderFormattedText(line, formatOpts);
-}
-
 function looksLikeLinkList(text) {
-  if (/\[([^\]]+)\]\(\s*https?:\/\//i.test(text)) return true;
+  if (/\[([^\]]+)\]\(\s*(https?:\/\/|\/reporte)/i.test(text)) return true;
+  if (/^\s*\d+\.\s+/m.test(text)) return true;
   return false;
 }
 
 export default function FormattedMessage({ text, onOpenEmbed }) {
   const normalized = normalizeMessageLinks(text);
-  const blocks = parseChatBlocks(normalized);
-  const hasStructured = blocks.some(
-    (block) => block.type === 'table' || block.type === 'ranking',
-  );
-  const formatOpts = { onOpenEmbed };
-
-  if (hasStructured) {
-    return (
-      <div className="message-content message-content--rich">
-        {blocks.map((block, index) => {
-          if (block.type === 'table') {
-            return <ChatTable key={`table-${index}`} headers={block.headers} rows={block.rows} />;
-          }
-
-          if (block.type === 'ranking') {
-            return (
-              <ChatRanking
-                key={`rank-${index}`}
-                items={block.items}
-                valueHeader={block.valueHeader || 'Importe'}
-              />
-            );
-          }
-
-          return (
-            <p key={`p-${index}`} className="message-content--plain">
-              {block.text.split('\n').map((line, lineIndex) => (
-                <React.Fragment key={lineIndex}>
-                  {lineIndex > 0 && <br />}
-                  {renderLineWithIcons(line, formatOpts)}
-                </React.Fragment>
-              ))}
-            </p>
-          );
-        })}
-      </div>
-    );
-  }
-
   const parsed = looksLikeLinkList(normalized)
     ? { type: 'plain', text: normalized }
     : parseReport(normalized);
+  const formatOpts = { onOpenEmbed };
 
   if (parsed.type === 'plain') {
     return (
@@ -344,7 +274,7 @@ export default function FormattedMessage({ text, onOpenEmbed }) {
         {normalized.split('\n').map((line, index) => (
           <React.Fragment key={index}>
             {index > 0 && <br />}
-            {renderLineWithIcons(line, formatOpts)}
+            {renderFormattedText(line, formatOpts)}
           </React.Fragment>
         ))}
       </div>
@@ -355,8 +285,8 @@ export default function FormattedMessage({ text, onOpenEmbed }) {
     <div className="message-content message-content--report">
       {parsed.title && (
         <header className="report-title">
-          <span className="report-title__icon">
-            <MessageIcon kind={parsed.title.icon} />
+          <span className="report-title__emoji" aria-hidden="true">
+            {parsed.title.emoji}
           </span>
           <span className="report-title__text">
             {renderFormattedText(parsed.title.text, formatOpts)}
@@ -369,8 +299,8 @@ export default function FormattedMessage({ text, onOpenEmbed }) {
           <section key={sectionIndex} className="report-section">
             {section.title && (
               <h3 className="report-section__header">
-                <span className="report-section__icon">
-                  <MessageIcon kind={section.title.icon} />
+                <span className="report-section__emoji" aria-hidden="true">
+                  {section.title.emoji}
                 </span>
                 <span>{renderFormattedText(section.title.text, formatOpts)}</span>
               </h3>

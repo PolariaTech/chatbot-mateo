@@ -1915,19 +1915,6 @@ button.message-report-link--embed:hover {
   background: var(--bg);
 }
 
-.embed-panel__loading {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.embed-panel__loading .sso-screen {
-  min-height: 100%;
-  height: 100%;
-}
-
 .embed-panel__error {
   position: absolute;
   inset: 0;
@@ -1982,7 +1969,8 @@ button.message-report-link--embed:hover {
   border-bottom: 1px solid var(--w08);
 }
 
-.report-title__icon {
+.report-title__icon,
+.report-title__emoji {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1993,6 +1981,11 @@ button.message-report-link--embed:hover {
   border: 1px solid var(--t20);
   background: var(--t08);
   color: var(--teal);
+}
+
+.report-title__emoji {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .report-title__text {
@@ -2031,7 +2024,8 @@ button.message-report-link--embed:hover {
   color: var(--w50);
 }
 
-.report-section__icon {
+.report-section__icon,
+.report-section__emoji {
   display: inline-flex;
   align-items: center;
   justify-content: center;

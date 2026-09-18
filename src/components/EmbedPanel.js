@@ -4,21 +4,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaExpand, FaTimes, FaRedo } from 'react-icons/fa';
 import {
   EMBED_FRAME_PATH,
-  EMBED_MSG_ERROR,
   EMBED_MSG_LOAD,
   EMBED_MSG_READY,
   peekEmbedUrl,
 } from '../lib/embed-registry';
 import { extractFirstUrl as extractFirstUrlFromText } from '../lib/message-links';
-import DashboardLoadingScreen from './DashboardLoadingScreen';
 
 export default function EmbedPanel({ token, title, onClose }) {
   const [loadError, setLoadError] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [frameReady, setFrameReady] = useState(false);
   const iframeRef = useRef(null);
-  const loadCountRef = useRef(0);
 
   const sendTargetUrl = () => {
     const frame = iframeRef.current;
@@ -38,20 +34,12 @@ export default function EmbedPanel({ token, title, onClose }) {
 
   useEffect(() => {
     setLoadError(false);
-    setFrameReady(false);
-    loadCountRef.current = 0;
     setIframeKey((k) => k + 1);
   }, [token]);
 
   useEffect(() => {
     const onMessage = (event) => {
       if (event.origin !== window.location.origin) return;
-      if (event.data?.type === EMBED_MSG_ERROR) {
-        if (event.source !== iframeRef.current?.contentWindow) return;
-        setLoadError(true);
-        return;
-      }
-
       if (event.data?.type !== EMBED_MSG_READY) return;
       if (event.source !== iframeRef.current?.contentWindow) return;
 
@@ -78,8 +66,6 @@ export default function EmbedPanel({ token, title, onClose }) {
 
   const handleRetry = () => {
     setLoadError(false);
-    setFrameReady(false);
-    loadCountRef.current = 0;
     setIframeKey((k) => k + 1);
   };
 
@@ -137,30 +123,17 @@ export default function EmbedPanel({ token, title, onClose }) {
             </div>
           </div>
         ) : (
-          <>
-            {!frameReady ? (
-              <div className="embed-panel__loading">
-                <DashboardLoadingScreen />
-              </div>
-            ) : null}
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              src={EMBED_FRAME_PATH}
-              title={label}
-              className="embed-panel__iframe"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-              referrerPolicy="no-referrer"
-              onLoad={() => {
-                sendTargetUrl();
-                loadCountRef.current += 1;
-                if (loadCountRef.current >= 2) {
-                  setFrameReady(true);
-                }
-              }}
-              onError={() => setLoadError(true)}
-            />
-          </>
+          <iframe
+            key={iframeKey}
+            ref={iframeRef}
+            src={EMBED_FRAME_PATH}
+            title={label}
+            className="embed-panel__iframe"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+            referrerPolicy="no-referrer"
+            onLoad={sendTargetUrl}
+            onError={() => setLoadError(true)}
+          />
         )}
       </div>
     </aside>
