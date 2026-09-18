@@ -17,7 +17,7 @@ function isIOS() {
   );
 }
 
-export default function PWAInstallButton({ compact = false }) {
+export default function PWAInstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showHint, setShowHint] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -86,12 +86,12 @@ export default function PWAInstallButton({ compact = false }) {
     <>
       <button
         type="button"
-        className={`outline-btn${compact ? " outline-btn--compact" : ""}`}
+        className="polaria-topbar-btn polaria-topbar-btn--teal polaria-topbar-btn--icon-only"
         onClick={handleInstall}
         aria-label="Instalar app"
+        title="Instalar app"
       >
-        <FaDownload aria-hidden="true" />
-        {!compact && <span>Instalar</span>}
+        <FaDownload size={20} aria-hidden="true" />
       </button>
 
       {showHint && (

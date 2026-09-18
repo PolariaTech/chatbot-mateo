@@ -27,3 +27,4 @@ export function releaseEmbedUrl(token) {
 export const EMBED_FRAME_PATH = '/vista-embebida';
 export const EMBED_MSG_READY = 'mateo-embed-ready';
 export const EMBED_MSG_LOAD = 'mateo-embed-load';
+export const EMBED_MSG_ERROR = 'mateo-embed-error';

@@ -105,13 +105,31 @@ function withCodigoEmpresa(user, context) {
   };
 }
 
+function pickPersonName(user) {
+  const candidates = [
+    user.nombre,
+    user.name,
+    user.username,
+    user.identificador,
+    user.preferred_username,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim() && !value.includes('@')) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
 function normalizeUser(rawUser = {}) {
   const user = rawUser ?? {};
 
   return {
     idUsuario: user.idUsuario ?? user.id ?? user.userId ?? user.sub ?? null,
     username: user.username ?? user.identificador ?? user.preferred_username ?? user.email ?? '',
-    nombre: user.nombre ?? user.name ?? user.username ?? user.preferred_username ?? '',
+    nombre: pickPersonName(user),
     codigoEmpresa: user.codigoEmpresa ?? user.codigo_empresa ?? user.companyCode ?? user.tenant ?? null,
     email: user.email ?? user.correo ?? null,
     role: user.role ?? user.rol ?? null,
@@ -240,6 +258,17 @@ export function toWmsPersistPayload(session) {
   };
 
   if (context) state.context = context;
+
+  if (session.user) {
+    state.user = {
+      idUsuario: session.user.idUsuario ?? null,
+      username: session.user.username ?? '',
+      nombre: session.user.nombre ?? '',
+      email: session.user.email ?? null,
+      codigoEmpresa: session.user.codigoEmpresa ?? null,
+      role: session.user.role ?? null,
+    };
+  }
 
   return JSON.stringify({ state, version: 0 });
 }

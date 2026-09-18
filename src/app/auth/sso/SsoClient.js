@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { redirectToWmsLogin } from '../../../lib/auth-config';
 import * as authApi from '../../../lib/auth-api';
 import { captureSessionFromLocation, getStoredSession, setStoredSession } from '../../../lib/auth-storage';
-import PolariaIcon from '../../../components/PolariaIcon';
-import '../../../styles/auth.css';
+import SsoStatusScreen from '../../../components/SsoStatusScreen';
 
 export default function SsoClient() {
   const router = useRouter();
@@ -58,29 +57,24 @@ export default function SsoClient() {
     };
   }, [searchParams, router]);
 
+  if (error) {
+    return (
+      <SsoStatusScreen title="No se pudo iniciar sesión" message={error}>
+        <button
+          type="button"
+          className="auth-btn auth-btn--primary"
+          onClick={redirectToWmsLogin}
+        >
+          Ir al inicio de sesión
+        </button>
+      </SsoStatusScreen>
+    );
+  }
+
   return (
-    <div className="sso-page">
-      <div className="sso-card">
-        <PolariaIcon size={28} />
-        {error ? (
-          <>
-            <h1>No se pudo iniciar sesión</h1>
-            <p className="auth-error">{error}</p>
-            <button
-              type="button"
-              className="auth-btn auth-btn--primary"
-              onClick={redirectToWmsLogin}
-            >
-              Ir al inicio de sesión
-            </button>
-          </>
-        ) : (
-          <>
-            <h1>Conectando con Mateo…</h1>
-            <p>Validando tu sesión desde el WMS.</p>
-          </>
-        )}
-      </div>
-    </div>
+    <SsoStatusScreen
+      title="Conectando con Mateo IA…"
+      message="Estamos validando tu sesión desde Polaria WMS."
+    />
   );
 }

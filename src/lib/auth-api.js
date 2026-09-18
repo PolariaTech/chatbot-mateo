@@ -1,3 +1,5 @@
+import { mergeAuthUser } from './display-name';
+
 const DEFAULT_API_BASE = 'https://polaria-wms-api.onrender.com';
 
 function resolveApiBase() {
@@ -47,11 +49,28 @@ function withCodigoEmpresa(user, context) {
   };
 }
 
+function pickPersonName(rawUser) {
+  const candidates = [
+    rawUser.nombre,
+    rawUser.name,
+    rawUser.username,
+    rawUser.identificador,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim() && !value.includes("@")) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
 function normalizeUser(rawUser = {}) {
   return {
     idUsuario: rawUser.idUsuario ?? rawUser.id ?? rawUser.userId ?? null,
-    username: rawUser.username ?? rawUser.identificador ?? '',
-    nombre: rawUser.nombre ?? rawUser.name ?? rawUser.username ?? '',
+    username: rawUser.username ?? rawUser.identificador ?? "",
+    nombre: pickPersonName(rawUser),
     codigoEmpresa: rawUser.codigoEmpresa ?? rawUser.codigo_empresa ?? null,
     email: rawUser.email ?? rawUser.correo ?? null,
     role: rawUser.role ?? rawUser.rol ?? rawUser.idRol ?? rawUser.nombreRol ?? null,
@@ -123,14 +142,7 @@ export async function login({ username, password, codigoEmpresa }) {
   if (!result.ok) return result;
 
   try {
-    let session = normalizeSession(result.data);
-    const meResult = await fetchMe(session.accessToken);
-    if (meResult.ok && meResult.user) {
-      session = {
-        ...session,
-        user: withCodigoEmpresa(meResult.user, session.context),
-      };
-    }
+    const session = await enrichSessionWithMe(normalizeSession(result.data));
     return { ...result, session };
   } catch (error) {
     return {
@@ -159,7 +171,8 @@ export async function exchangeMateoCode(code) {
   if (!result.ok) return result;
 
   try {
-    return { ...result, session: normalizeSession(result.data) };
+    const session = await enrichSessionWithMe(normalizeSession(result.data));
+    return { ...result, session };
   } catch (error) {
     return {
       ok: false,
@@ -174,21 +187,29 @@ export async function fetchMe(token) {
   const result = await request('/auth/me', { token, includeCredentials: !token });
   if (!result.ok) return result;
 
-  let session = null;
-  try {
-    session = normalizeSession(result.data);
-  } catch {
-    session = null;
-  }
+  const rawUser = result.data?.user ?? result.data?.usuario ?? result.data ?? {};
 
   return {
     ...result,
-    user: withCodigoEmpresa(
-      session?.user ?? normalizeUser(result.data?.user ?? result.data),
-      result.data?.context,
-    ),
-    session,
+    user: withCodigoEmpresa(normalizeUser(rawUser), result.data?.context),
+    session: null,
   };
+}
+
+export async function enrichSessionWithMe(session) {
+  if (!session?.accessToken) return session;
+
+  try {
+    const meResult = await fetchMe(session.accessToken);
+    if (!meResult.ok || !meResult.user) return session;
+
+    return {
+      ...session,
+      user: mergeAuthUser(session.user, meResult.user),
+    };
+  } catch {
+    return session;
+  }
 }
 
 export async function logout(token) {

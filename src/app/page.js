@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 import LogoutForm from '../components/LogoutForm';
-import PWAInstallButton from '../components/PWAInstallButton';
-import WmsLinkButton from '../components/WmsLinkButton';
+import MateoTopbar from '../components/MateoTopbar';
+import SsoStatusScreen from '../components/SsoStatusScreen';
 import { isDirectLoginEnabled, redirectToWmsLogin } from '../lib/auth-config';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from '../components/LoginForm';
@@ -10,22 +10,90 @@ import { useChat } from '../hooks/useChat';
 import FormattedMessage from '../components/FormattedMessage';
 import EmbedPanel, { extractFirstUrl } from '../components/EmbedPanel';
 import { registerEmbedUrl, releaseEmbedUrl } from '../lib/embed-registry';
+import { getDisplayInitial, getDisplayName } from '../lib/display-name';
 
-import {
-  FaPlus,
-  FaWarehouse,
-  FaBrain,
-  FaChartBar,
-  FaChartLine,
-  FaMicrophone,
-  FaSignOutAlt,
-} from 'react-icons/fa';
-
-function SidebarToggleIcon({ size = 20 }) {
+function OutlineIcon({ children }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.2" y="4.2" width="17.6" height="15.6" rx="3.2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M9 4.2v15.6" stroke="currentColor" strokeWidth="1.7" />
+    <svg
+      className="action-btn__icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function IconInventario() {
+  return (
+    <OutlineIcon>
+      <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+      <path d="M12 22V12" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+    </OutlineIcon>
+  );
+}
+
+function IconNegocio() {
+  return (
+    <OutlineIcon>
+      <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
+      <path d="M20 2v4" />
+      <path d="M22 4h-4" />
+      <circle cx="4" cy="20" r="2" />
+    </OutlineIcon>
+  );
+}
+
+function IconInformes() {
+  return (
+    <OutlineIcon>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M8 18v-2" />
+      <path d="M12 18v-4" />
+      <path d="M16 18v-6" />
+    </OutlineIcon>
+  );
+}
+
+function IconUtilidades() {
+  return (
+    <OutlineIcon>
+      <path d="M16 7h6v6" />
+      <path d="m22 7-8.5 8.5-5-5L2 17" />
+    </OutlineIcon>
+  );
+}
+
+function SidebarToggleIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="6.5" y1="3" x2="6.5" y2="13" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path d="M6 1.5V10.5M1.5 6H10.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function IconChat() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -33,8 +101,14 @@ function SidebarToggleIcon({ size = 20 }) {
 function MateoSparkleAvatar() {
   return (
     <div className="mateo-avatar" aria-hidden="true">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path
+          d="M4.9685 7.74997C4.92386 7.57695 4.83367 7.41905 4.70731 7.29269C4.58095 7.16633 4.42304 7.07614 4.25 7.0315L1.1825 6.2405C1.13017 6.22565 1.0841 6.19412 1.0513 6.15072C1.01851 6.10732 1.00076 6.05441 1.00076 6C1.00076 5.9456 1.01851 5.89268 1.0513 5.84928C1.0841 5.80588 1.13017 5.77436 1.1825 5.7595L4.25 4.968C4.42298 4.92341 4.58084 4.83329 4.7072 4.70702C4.83356 4.58075 4.92378 4.42295 4.9685 4.25L5.7595 1.1825C5.77421 1.12996 5.80569 1.08367 5.84916 1.0507C5.89263 1.01772 5.94569 0.999878 6.00025 0.999878C6.05481 0.999878 6.10787 1.01772 6.15134 1.0507C6.19481 1.08367 6.2263 1.12996 6.241 1.1825L7.0315 4.25C7.07614 4.42304 7.16633 4.58095 7.29269 4.70731C7.41905 4.83367 7.57695 4.92386 7.74998 4.9685L10.8175 5.759C10.8703 5.77355 10.9168 5.80501 10.9499 5.84854C10.9831 5.89208 11.001 5.94528 11.001 6C11.001 6.05472 10.9831 6.10793 10.9499 6.15146C10.9168 6.19499 10.8703 6.22645 10.8175 6.241L7.74998 7.0315C7.57695 7.07614 7.41905 7.16633 7.29269 7.29269C7.16633 7.41905 7.07614 7.57695 7.0315 7.74997L6.2405 10.8175C6.2258 10.87 6.19431 10.9163 6.15084 10.9493C6.10737 10.9823 6.05431 11.0001 5.99975 11.0001C5.94519 11.0001 5.89213 10.9823 5.84866 10.9493C5.8052 10.9163 5.7737 10.87 5.759 10.8175L4.9685 7.74997Z"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.05"
+        />
       </svg>
     </div>
   );
@@ -194,30 +268,30 @@ export default function Home() {
     abrirConversacion(id);
   };
 
-  const displayName = isAuthenticated ? (user.nombre || user.username || 'Usuario') : 'Usuario';
-  const userInitial = displayName.charAt(0).toUpperCase();
+  const displayName = isAuthenticated ? getDisplayName(user) : '';
+  const userInitial = isAuthenticated ? getDisplayInitial(user) : 'U';
   const userDomain = isAuthenticated
     ? (user.email?.split('@')[1] || user.codigoEmpresa || 'polaria.tech')
     : '';
 
   const WELCOME_CARDS = [
     {
-      icon: FaWarehouse,
+      icon: IconInventario,
       title: 'Consulta Instantánea de Inventarios',
       description: 'Información precisa y actualizada para decisiones rápidas.',
     },
     {
-      icon: FaBrain,
+      icon: IconNegocio,
       title: 'Conocimiento y Gestión del Negocio',
       description: 'Insights diarios para una administración con visión de futuro.',
     },
     {
-      icon: FaChartBar,
+      icon: IconInformes,
       title: 'Disponibilidad Total de Informes',
       description: 'Acceso inmediato a informes detallados y listos para la toma de decisiones.',
     },
     {
-      icon: FaChartLine,
+      icon: IconUtilidades,
       title: 'Seguimiento de Utilidades en Tiempo Real',
       description: 'Visualiza márgenes, costos y rentabilidad con datos consolidados al instante.',
     },
@@ -225,12 +299,10 @@ export default function Home() {
 
   if (!isReady) {
     return (
-      <div className="sso-page">
-        <div className="sso-card">
-          <h1>Cargando…</h1>
-          <p>Preparando la sesión.</p>
-        </div>
-      </div>
+      <SsoStatusScreen
+        title="Conectando con Mateo IA…"
+        message="Estamos validando tu sesión desde Polaria WMS."
+      />
     );
   }
 
@@ -240,22 +312,30 @@ export default function Home() {
     }
 
     return (
-      <div className="sso-page">
-        <div className="sso-card">
-          <h1>Redirigiendo al inicio de sesión…</h1>
-          <p>Serás enviado al portal de Polaria WMS.</p>
-        </div>
-      </div>
+      <SsoStatusScreen
+        title="Conectando con Polaria WMS…"
+        message="Estamos validando tu sesión desde Mateo IA."
+      />
     );
   }
 
   const hasEmbed = Boolean(embed?.token);
 
   return (
-    <div className={`layout${hasEmbed ? ' layout--with-embed' : ''}`}>
+    <div className={`layout${hasEmbed ? ' layout--with-embed' : ''}${isSidebarCollapsed ? ' layout--sidebar-collapsed' : ''}`}>
       {isMobile && !isSidebarCollapsed && (
         <div className="sidebar-backdrop" onClick={toggleSidebar} aria-hidden="true" />
       )}
+      {isMobile && isSidebarCollapsed ? (
+        <button
+          className="menu-btn sidebar-open-btn"
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="Abrir menú"
+        >
+          <SidebarToggleIcon />
+        </button>
+      ) : null}
       <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="brand">
           <button
@@ -264,7 +344,7 @@ export default function Home() {
             onClick={toggleSidebar}
             aria-label="Alternar menú"
           >
-            <SidebarToggleIcon size={20} />
+            <SidebarToggleIcon />
           </button>
           <button
             className="brand-home"
@@ -276,15 +356,19 @@ export default function Home() {
           </button>
         </div>
 
-        <button className="new-chat" onClick={handleNuevoChat} type="button">
-          <FaPlus size={12} aria-hidden="true" />
-          Nueva conversación
-        </button>
+        <div className="sidebar-actions">
+          <button className="new-chat" onClick={handleNuevoChat} type="button">
+            <span className="new-chat__icon">
+              <IconPlus />
+            </span>
+            Nueva conversación
+          </button>
+        </div>
 
         {persistError && (
           <div className="history-empty history-empty--error">{persistError}</div>
         )}
-        <div className="history">
+        <div className="history polaria-scrollbar">
           {isLoadingConversaciones && conversaciones.length === 0 && (
             <div className="history-empty">Cargando conversaciones…</div>
           )}
@@ -298,14 +382,19 @@ export default function Home() {
               className={`history-item${activeConversacionId === conversacion.idConversacion ? ' active' : ''}`}
               onClick={() => handleAbrirConversacion(conversacion.idConversacion)}
             >
-              <span className="history-item__title">
-                {conversacion.titulo || 'Nueva conversación'}
+              <span className="history-item__icon">
+                <IconChat />
               </span>
-              {(conversacion.updatedAt || conversacion.createdAt) && (
-                <span className="history-item__date">
-                  {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
+              <span className="history-item__body">
+                <span className="history-item__title">
+                  {conversacion.titulo || 'Nueva conversación'}
                 </span>
-              )}
+                {(conversacion.updatedAt || conversacion.createdAt) && (
+                  <span className="history-item__date">
+                    {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -313,11 +402,11 @@ export default function Home() {
         <div className="sidebar-footer">
           <div className="user-panel">
             <div className="avatar">
-              {isAuthenticated ? (user.nombre || user.username || '?').charAt(0).toUpperCase() : '?'}
+              {isAuthenticated ? getDisplayInitial(user) : '?'}
             </div>
-            <div>
+            <div className="user-panel__info">
               <div className="user-name">
-                {isAuthenticated ? user.nombre || user.username : 'Invitado'}
+                {isAuthenticated ? getDisplayName(user) || 'Usuario' : 'Invitado'}
               </div>
               <div className="user-role">
                 {isAuthenticated ? userDomain : 'Sin sesión'}
@@ -328,50 +417,10 @@ export default function Home() {
       </aside>
 
       <main className="main">
-        <header className="topbar">
-          <div className="topbar-left">
-            {(isSidebarCollapsed || isMobile) && (
-              <button
-                className="menu-btn"
-                type="button"
-                onClick={toggleSidebar}
-                aria-label="Abrir menú"
-              >
-                <SidebarToggleIcon size={20} />
-              </button>
-            )}
-            <button
-              className="topbar-title"
-              type="button"
-              onClick={handleMostrarInicio}
-              aria-label="Ir al inicio"
-            >
-              <span className="topbar-logo" aria-hidden="true">
-                <img src="/mateo-support-icon.png" alt="" width={62} height={68} />
-              </span>
-              <span className="topbar-title-text">
-                <span className="topbar-title-name">Mateo IA</span>
-                <span className="topbar-title-status">
-                  En línea
-                  {userDomain && (
-                    <>
-                      <span className="topbar-title-sep">·</span>
-                      <span className="topbar-title-domain">{userDomain}</span>
-                    </>
-                  )}
-                </span>
-              </span>
-            </button>
-          </div>
-          <div className="topbar-actions">
-            <WmsLinkButton compact={isMobile} />
-            <PWAInstallButton compact={isMobile} />
-            <button className="logout-btn" type="button" onClick={() => setShowLogoutForm(true)}>
-              <FaSignOutAlt size={16} aria-hidden="true" />
-              Cerrar sesión
-            </button>
-          </div>
-        </header>
+        <MateoTopbar
+          onHome={handleMostrarInicio}
+          onLogout={() => setShowLogoutForm(true)}
+        />
 
         {showWelcome && (
           <section className="welcome">
@@ -380,7 +429,13 @@ export default function Home() {
                 {userInitial}
               </div>
               <h1 className="welcome-hero__greeting">
-                Hola, <span className="welcome-hero__name">{displayName}</span>
+                {displayName ? (
+                  <>
+                    Hola, <span className="welcome-hero__name">{displayName}</span>
+                  </>
+                ) : (
+                  'Hola'
+                )}
               </h1>
               <p className="welcome-hero__subtitle">¿En qué puedo ayudarte hoy?</p>
             </div>
@@ -392,7 +447,9 @@ export default function Home() {
             <div className="action-grid">
               {WELCOME_CARDS.map(({ icon: Icon, title, description }) => (
                 <div key={title} className="action-btn">
-                  <Icon size={20} className="action-btn__icon" />
+                  <span className="action-btn__icon-wrap">
+                    <Icon />
+                  </span>
                   <div className="action-btn__content">
                     <h3>{title}</h3>
                     <p>{description}</p>
@@ -416,11 +473,11 @@ export default function Home() {
               >
                 {msg.tipo === 'ia' ? (
                   <>
-                    <div className="message-bubble">
-                      <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
-                    </div>
-                    <div className="message-meta">
-                      <MateoSparkleAvatar />
+                    <MateoSparkleAvatar />
+                    <div className="message-col">
+                      <div className="message-bubble">
+                        <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
+                      </div>
                       {msg.createdAt && (
                         <time className="message-time" dateTime={msg.createdAt}>
                           {formatoHora(msg.createdAt)}
@@ -458,10 +515,16 @@ export default function Home() {
         <footer className="composer">
           <div className="composer-inner">
             <button className="composer-icon-btn" type="button" aria-label="Adjuntar archivo">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 15V4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-                <path d="M7.5 8 12 3.5 16.5 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 20h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path
+                  d="M2.33363 9.91638V11.0836C2.33363 11.393 2.45651 11.6896 2.67525 11.9084C2.89399 12.1271 3.19066 12.25 3.5 12.25H10.5C10.8093 12.25 11.106 12.1271 11.3248 11.9084C11.5435 11.6896 11.6664 11.393 11.6664 11.0836V9.91638"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.225"
+                />
+                <path d="M9.33362 4.66638L7 2.33363L4.66638 4.66638" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.225" />
+                <path d="M7 2.33363V9.33363" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.225" />
               </svg>
             </button>
             <input
@@ -471,10 +534,8 @@ export default function Home() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              aria-label="Escribe tu mensaje"
             />
-            <button className="composer-icon-btn composer-icon-btn--voice" type="button" aria-label="Entrada de voz">
-              <FaMicrophone size={18} />
-            </button>
             <button
               className="composer-send"
               type="button"
@@ -482,21 +543,23 @@ export default function Home() {
               disabled={isSending}
               aria-label="Enviar mensaje"
             >
-              <svg width="15" height="15" viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
-                <path
-                  d="m22 2-7 20-4-9-9-4 20-7Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M22 2 11 13"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+              {isSending ? (
+                <svg className="composer-send__spinner" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeOpacity="0.2" strokeWidth="1.5" />
+                  <path d="M12.5 7A5.5 5.5 0 007 1.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path
+                    d="M7.41941 11.0689C7.43881 11.1172 7.47252 11.1584 7.51602 11.1871C7.55953 11.2157 7.61075 11.2303 7.6628 11.229C7.71486 11.2277 7.76527 11.2104 7.80725 11.1796C7.84923 11.1488 7.88078 11.1059 7.89768 11.0567L11.2154 1.35873C11.2318 1.31351 11.2348 1.26456 11.2244 1.21762C11.2139 1.1707 11.1903 1.12771 11.1563 1.09371C11.1223 1.0597 11.0793 1.0361 11.0324 1.02563C10.9855 1.01517 10.9365 1.01828 10.8913 1.03462L1.19335 4.35232C1.1441 4.36922 1.10119 4.40077 1.07038 4.44275C1.03958 4.48473 1.02235 4.53514 1.02102 4.5872C1.01968 4.63925 1.0343 4.69047 1.06292 4.73398C1.09154 4.77748 1.13278 4.8112 1.1811 4.83059L5.22871 6.45371C5.35666 6.50493 5.47292 6.58155 5.57047 6.67892C5.66801 6.77629 5.74483 6.89241 5.79629 7.02027L7.41941 11.0689Z"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.1375"
+                  />
+                  <path d="M11.1547 1.09587L5.57069 6.67931" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.1375" />
+                </svg>
+              )}
             </button>
           </div>
         </footer>
