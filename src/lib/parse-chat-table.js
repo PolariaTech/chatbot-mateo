@@ -58,6 +58,7 @@ function tryConsumeTable(lines, start) {
 }
 
 const RANK_RE = /^(\d{1,3})[.)]\s+(.+)$/;
+const HAS_LINK_RE = /https?:\/\//i;
 const MONEY_TAIL_RE = /^(.*?)\s+[-–—]\s+(\$[\d,]+(?:\.\d{2})?.*)$/;
 const MONEY_SPACE_RE = /^(.*?)\s+(\$[\d,]+(?:\.\d{2})?)\s*$/;
 
@@ -85,10 +86,14 @@ function tryConsumeRanking(lines, start) {
     let body = match[2];
     i += 1;
 
+    if (HAS_LINK_RE.test(body) || /\[[^\]]*\]\(/.test(body)) return null;
+
     while (i < lines.length) {
       const next = lines[i].trim();
       if (!next) break;
       if (RANK_RE.test(next) || isPipeDataRow(next) || isPipeSepRow(next)) break;
+      if (HAS_LINK_RE.test(next) || /\[[^\]]*\]\(/.test(next)) break;
+      if (!/^\$?[\d,]/.test(next) && !/MXN|USD|EUR/i.test(next)) break;
       body += ` ${next}`;
       i += 1;
     }
@@ -114,7 +119,13 @@ function looksLikeName(label) {
 
 function parseQuantityLine(rawLine) {
   const trimmed = String(rawLine || '').trim();
-  if (!trimmed || RANK_RE.test(trimmed) || isPipeDataRow(trimmed) || isPipeSepRow(trimmed)) {
+  if (
+    !trimmed ||
+    HAS_LINK_RE.test(trimmed) ||
+    RANK_RE.test(trimmed) ||
+    isPipeDataRow(trimmed) ||
+    isPipeSepRow(trimmed)
+  ) {
     return null;
   }
 
@@ -179,6 +190,11 @@ export function parseChatBlocks(raw) {
     const trimmed = lines[i].trim();
 
     if (!trimmed) {
+      const pending = paragraphBuf.join('\n');
+      if (/\[[^\]]*\]\([^)]*$/.test(pending)) {
+        i += 1;
+        continue;
+      }
       flushParagraph();
       i += 1;
       continue;
