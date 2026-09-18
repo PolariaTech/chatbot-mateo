@@ -1,4 +1,4 @@
-# Mateo — Chatbot de IA (Polaria Tech)
+# Mateo — Chatbot de IA (Polaria Tech).
 
 Asistente virtual **Mateo**, desplegado en [chatbot-mateo.vercel.app](https://chatbot-mateo.vercel.app). App independiente del WMS que consume **polaria-wms-api** para autenticación real.
 
