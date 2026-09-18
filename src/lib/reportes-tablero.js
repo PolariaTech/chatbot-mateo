@@ -96,6 +96,18 @@ function siguienteDiaIso(fechaIso) {
   return d.toISOString().slice(0, 10);
 }
 
+function serializarFiltrosEq(filtrosEq) {
+  if (!filtrosEq || typeof filtrosEq !== 'object') return [];
+  return Object.entries(filtrosEq).flatMap(([columna, valores]) => {
+    const nums = (Array.isArray(valores) ? valores : [valores])
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n));
+    if (!nums.length) return [];
+    if (nums.length === 1) return [`${columna}=eq.${nums[0]}`];
+    return [`${columna}=in.(${nums.join(',')})`];
+  });
+}
+
 async function consultarVista({
   schema,
   vista,
@@ -106,6 +118,7 @@ async function consultarVista({
   uniqueKey,
   limite,
   offset = 0,
+  filtrosEq,
 }) {
   const baseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -124,6 +137,7 @@ async function consultarVista({
     queryParts.push(`${fechaColumna}=gte.${fechaInicio}`);
     queryParts.push(`${fechaColumna}=lt.${siguienteDiaIso(fechaFin)}`);
   }
+  queryParts.push(...serializarFiltrosEq(filtrosEq));
   const orderExpr = fechaColumna
     ? `${fechaColumna}.desc${order ? `,${order}` : ''}`
     : order;
@@ -198,6 +212,28 @@ export async function consultarVistaCompras({ schema, fechaInicio, fechaFin }) {
     uniqueKey: 'id_line_item',
   });
   return rows;
+}
+
+export async function consultarVistaFoliosDigitales({
+  schema,
+  fechaInicio,
+  fechaFin,
+  limite,
+  offset,
+  filtrosEq,
+}) {
+  return consultarVista({
+    schema,
+    vista: 'vista_folios_digitales',
+    fechaColumna: 'fecha_emision',
+    fechaInicio,
+    fechaFin,
+    order: 'id_folio_digital.asc',
+    uniqueKey: 'id_folio_digital',
+    limite,
+    offset,
+    filtrosEq,
+  });
 }
 
 export async function consultarVistaInventario({ schema }) {

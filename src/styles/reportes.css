@@ -138,6 +138,60 @@
   align-items: flex-end;
 }
 
+.reportes-root .rp-check-group {
+  margin: 0;
+  padding: 10px 12px;
+  min-width: 240px;
+  border: 1px solid var(--rp-line);
+  border-radius: 12px;
+  background: rgba(4, 14, 12, 0.45);
+}
+
+.reportes-root .rp-check-group legend {
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--rp-text);
+  cursor: pointer;
+}
+
+.reportes-root .rp-check input {
+  margin-top: 2px;
+  accent-color: var(--rp-accent);
+}
+
+.reportes-root .rp-pivot .rp-pivot-nivel-1 td:first-child {
+  font-weight: 700;
+  padding-left: 12px;
+}
+
+.reportes-root .rp-pivot .rp-pivot-nivel-2 td:first-child {
+  padding-left: 28px;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-pivot .rp-pivot-nivel-3 td:first-child {
+  padding-left: 48px;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-pivot tfoot td {
+  font-weight: 700;
+}
+
 .reportes-root .rp-campo {
   display: flex;
   flex-direction: column;
