@@ -7,6 +7,7 @@ const OFFERS_REPORT_RE = /aqu[ií]\s+est[aá]\s+el\s+(?:\[)?reporte|\baqu[ií] t
 const NO_LINK_AVAILABLE_RE = /no tengo un enlace|enlace disponible|no (?:tengo|pude)\b.{0,40}\breporte/i;
 
 const REPORT_ROUTES = [
+  { keys: ['gerencia'], path: '/reportegerencia', label: 'reporte de gerencia' },
   { keys: ['compra'], path: '/reportecompras', label: 'reporte de compras' },
   { keys: ['inventario'], path: '/reporteinventario', label: 'reporte de inventario' },
   { keys: ['folio'], path: '/reportefolios', label: 'reporte de folios' },

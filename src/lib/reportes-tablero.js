@@ -37,7 +37,7 @@ async function leerError(response) {
   }
 }
 
-export async function consultarTableroRpc({ schema, fechaInicio, fechaFin }) {
+async function consultarRpcFechas({ schema, rpcName, fechaInicio, fechaFin }) {
   const baseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
@@ -45,7 +45,7 @@ export async function consultarTableroRpc({ schema, fechaInicio, fechaFin }) {
     throw new Error('Supabase no está configurado.');
   }
 
-  const response = await fetch(`${baseUrl}/rest/v1/rpc/get_ventas_compras_inventario`, {
+  const response = await fetch(`${baseUrl}/rest/v1/rpc/${rpcName}`, {
     method: 'POST',
     headers: {
       apikey: key,
@@ -65,7 +65,26 @@ export async function consultarTableroRpc({ schema, fechaInicio, fechaFin }) {
     throw new Error(await leerError(response));
   }
 
-  return normalizarFilasRpc(await response.json());
+  return response.json();
+}
+
+export async function consultarTableroRpc({ schema, fechaInicio, fechaFin }) {
+  const filas = await consultarRpcFechas({
+    schema,
+    rpcName: 'get_ventas_compras_inventario',
+    fechaInicio,
+    fechaFin,
+  });
+  return normalizarFilasRpc(filas);
+}
+
+export async function consultarTableroSkuRpc({ schema, fechaInicio, fechaFin }) {
+  return consultarRpcFechas({
+    schema,
+    rpcName: 'get_tablero_sku',
+    fechaInicio,
+    fechaFin,
+  });
 }
 
 function claveFila(row, uniqueKey) {
