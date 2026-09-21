@@ -403,13 +403,21 @@
   vertical-align: bottom;
 }
 
+.reportes-root .rp-th-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
 .reportes-root .rp-th-sort {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
-  margin: 0 0 8px;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
   padding: 0;
   border: none !important;
   background: transparent !important;
@@ -425,6 +433,113 @@
   color: var(--rp-accent);
 }
 
+.reportes-root .rp-th-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--rp-muted);
+  cursor: pointer;
+}
+
+.reportes-root .rp-th-filter-btn:hover,
+.reportes-root .rp-th-filter-btn.rp-open {
+  background: rgba(46, 230, 168, 0.12) !important;
+  color: var(--rp-accent);
+}
+
+.reportes-root .rp-th-filter-btn.rp-active {
+  color: var(--rp-accent);
+}
+
+.rp-excel-filter {
+  position: fixed;
+  z-index: 40;
+  width: 280px;
+  max-height: min(360px, calc(100vh - 24px));
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  border: 1px solid rgba(90, 200, 160, 0.18);
+  border-radius: 10px;
+  background: #0d241e;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.rp-excel-filter__search {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(90, 200, 160, 0.18);
+  border-radius: 7px;
+  background: rgba(4, 14, 12, 0.7);
+  color: #f4fffb;
+  font-size: 13px;
+}
+
+.rp-excel-filter__search:focus {
+  outline: none;
+  border-color: #2ee6a8;
+}
+
+.rp-excel-filter__list {
+  overflow: auto;
+  min-height: 80px;
+  max-height: 240px;
+  border-top: 1px solid rgba(90, 200, 160, 0.12);
+  padding-top: 4px;
+}
+
+.rp-excel-filter__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 5px 4px;
+  color: #f4fffb;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.rp-excel-filter__item:hover {
+  background: rgba(46, 230, 168, 0.08);
+}
+
+.rp-excel-filter__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-excel-filter__item input {
+  margin-top: 2px;
+  accent-color: #2ee6a8;
+}
+
+.rp-excel-filter__all {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.rp-excel-filter__empty {
+  padding: 16px 8px;
+  color: #8aa89c;
+  font-size: 13px;
+  text-align: center;
+}
+
 .reportes-root .rp-sort-ind {
   color: var(--rp-accent);
   font-size: 10px;
@@ -435,8 +550,8 @@
   justify-content: flex-end;
 }
 
-.reportes-root th.rp-num .rp-th-filter {
-  text-align: right;
+.reportes-root th.rp-num .rp-th-head {
+  justify-content: flex-end;
 }
 
 .reportes-root td:first-child {

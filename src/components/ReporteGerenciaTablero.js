@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
 
@@ -194,6 +195,29 @@ function formatoNumero(valor, columna) {
   return n.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: dec });
 }
 
+function claveFiltro(row, column, numericas) {
+  const raw = row[column];
+  if (raw === null || raw === undefined || raw === '') return '';
+  return numericas[column] ? formatoNumero(raw, column) : String(raw);
+}
+
+function etiquetaFiltro(key) {
+  return key === '' ? '(En blanco)' : key;
+}
+
+function IconFiltro({ activo }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill={activo ? 'currentColor' : 'none'} aria-hidden="true">
+      <path
+        d="M4 5h16l-6.2 7.4V19l-3.6 2v-8.6L4 5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function totalColumna(nombre, rows) {
   if (NO_SUMAR[nombre] || PORCENTAJE_1[nombre]) return null;
   if (RATIOS[nombre]) {
@@ -324,7 +348,10 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const [errorMessage, setErrorMessage] = useState('');
   const [rows, setRows] = useState(null);
   const [tab, setTab] = useState('tabla');
-  const [filtros, setFiltros] = useState({});
+  const [filtrosLista, setFiltrosLista] = useState({});
+  const [filtroAbierto, setFiltroAbierto] = useState(null);
+  const [busquedaFiltro, setBusquedaFiltro] = useState('');
+  const [filtroPos, setFiltroPos] = useState({ top: 0, left: 0 });
   const [orden, setOrden] = useState({ col: 'venta_total', dir: -1 });
 
   const chartVentasRef = useRef(null);
@@ -332,6 +359,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const chartHistogramaRef = useRef(null);
   const graficosRef = useRef([]);
   const cargaIdRef = useRef(0);
+  const filtroPanelRef = useRef(null);
 
   const columnas = useMemo(() => {
     if (!rows?.length) return [];
@@ -356,11 +384,9 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     if (!rows) return [];
     let visibles = rows.filter((row) =>
       columnas.every((column) => {
-        const filtro = (filtros[column] || '').trim().toLowerCase();
-        if (!filtro) return true;
-        const raw = numericas[column] ? formatoNumero(row[column], column) : row[column];
-        const texto = raw === null || raw === undefined ? '' : String(raw);
-        return texto.toLowerCase().includes(filtro);
+        const seleccion = filtrosLista[column];
+        if (!seleccion) return true;
+        return seleccion.includes(claveFiltro(row, column, numericas));
       }),
     );
 
@@ -387,7 +413,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     });
 
     return visibles;
-  }, [rows, columnas, filtros, orden, numericas]);
+  }, [rows, columnas, filtrosLista, orden, numericas]);
 
   const escalasMargen = useMemo(() => {
     const map = {};
@@ -398,6 +424,44 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     });
     return map;
   }, [columnas, filasVisibles]);
+
+  const opcionesFiltro = useMemo(() => {
+    if (!filtroAbierto || !rows?.length) return [];
+    const vistos = new Map();
+    rows.forEach((row) => {
+      const pasaOtros = columnas.every((column) => {
+        if (column === filtroAbierto) return true;
+        const seleccion = filtrosLista[column];
+        if (!seleccion) return true;
+        return seleccion.includes(claveFiltro(row, column, numericas));
+      });
+      if (!pasaOtros) return;
+      const key = claveFiltro(row, filtroAbierto, numericas);
+      if (vistos.has(key)) return;
+      vistos.set(key, {
+        key,
+        label: etiquetaFiltro(key),
+        sort: aNumero(row[filtroAbierto]),
+      });
+    });
+    return [...vistos.values()].sort((a, b) => {
+      if (a.key === '') return 1;
+      if (b.key === '') return -1;
+      if (numericas[filtroAbierto]) {
+        if (a.sort === null && b.sort === null) return a.label.localeCompare(b.label, 'es');
+        if (a.sort === null) return 1;
+        if (b.sort === null) return -1;
+        return a.sort - b.sort;
+      }
+      return a.label.localeCompare(b.label, 'es', { numeric: true, sensitivity: 'base' });
+    });
+  }, [filtroAbierto, rows, columnas, filtrosLista, numericas]);
+
+  const opcionesFiltroVisibles = useMemo(() => {
+    const q = busquedaFiltro.trim().toLowerCase();
+    if (!q) return opcionesFiltro;
+    return opcionesFiltro.filter((opcion) => opcion.label.toLowerCase().includes(q));
+  }, [opcionesFiltro, busquedaFiltro]);
 
   const topVentas = useMemo(() => topProductos(rows, 'venta_total'), [rows]);
   const topCantidad = useMemo(() => topProductos(rows, 'cantidad_venta'), [rows]);
@@ -516,7 +580,9 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     const cargaId = cargaIdRef.current + 1;
     cargaIdRef.current = cargaId;
     setErrorMessage('');
-    setFiltros({});
+    setFiltrosLista({});
+    setFiltroAbierto(null);
+    setBusquedaFiltro('');
     setOrden({ col: null, dir: 1 });
     setTab('tabla');
     destruirGraficos();
@@ -578,6 +644,90 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
         : { col: columna, dir: 1 }
     ));
   }
+
+  function abrirFiltroColumna(event, column) {
+    event.stopPropagation();
+    if (filtroAbierto === column) {
+      setFiltroAbierto(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ancho = 280;
+    setFiltroPos({
+      top: rect.bottom + 4,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - ancho - 8)),
+    });
+    setBusquedaFiltro('');
+    setFiltroAbierto(column);
+  }
+
+  function seleccionColumna(column) {
+    return filtrosLista[column] || null;
+  }
+
+  function estaSeleccionada(column, key) {
+    const seleccion = seleccionColumna(column);
+    return !seleccion || seleccion.includes(key);
+  }
+
+  function toggleValorFiltro(column, key) {
+    const todas = opcionesFiltro.map((opcion) => opcion.key);
+    const seleccion = seleccionColumna(column);
+    const actual = seleccion ? [...seleccion] : todas;
+    const siguiente = actual.includes(key)
+      ? actual.filter((item) => item !== key)
+      : [...actual, key];
+    setFiltrosLista((prev) => ({
+      ...prev,
+      [column]: siguiente.length === todas.length ? null : siguiente,
+    }));
+  }
+
+  function toggleSeleccionarTodo() {
+    if (!filtroAbierto) return;
+    const visibles = opcionesFiltroVisibles.map((opcion) => opcion.key);
+    const todas = opcionesFiltro.map((opcion) => opcion.key);
+    const seleccion = seleccionColumna(filtroAbierto);
+    const todasVisiblesMarcadas = visibles.every((key) => !seleccion || seleccion.includes(key));
+    let siguiente;
+    if (todasVisiblesMarcadas) {
+      const base = seleccion ? seleccion.filter((key) => !visibles.includes(key)) : todas.filter((key) => !visibles.includes(key));
+      siguiente = base;
+    } else {
+      const base = seleccion ? [...seleccion] : [];
+      visibles.forEach((key) => {
+        if (!base.includes(key)) base.push(key);
+      });
+      siguiente = base;
+    }
+    setFiltrosLista((prev) => ({
+      ...prev,
+      [filtroAbierto]: siguiente.length === todas.length ? null : siguiente,
+    }));
+  }
+
+  useEffect(() => {
+    if (!filtroAbierto) return undefined;
+    function onPointerDown(event) {
+      if (filtroPanelRef.current?.contains(event.target)) return;
+      if (event.target.closest?.('.rp-th-filter-btn')) return;
+      setFiltroAbierto(null);
+    }
+    function onKey(event) {
+      if (event.key === 'Escape') setFiltroAbierto(null);
+    }
+    function onScroll() {
+      setFiltroAbierto(null);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [filtroAbierto]);
 
   function exportarExcel() {
     const visibles = filasVisibles;
@@ -773,28 +923,34 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   <table>
                     <thead>
                       <tr>
-                        {columnas.map((column) => (
+                        {columnas.map((column) => {
+                          const filtrado = Array.isArray(filtrosLista[column]);
+                          return (
                           <th key={column} className={claseCelda(column, numericas)}>
-                            <button
-                              type="button"
-                              className="rp-th-sort"
-                              onClick={() => ordenarColumna(column)}
-                            >
-                              {column}
-                              <span className="rp-sort-ind">
-                                {orden.col === column ? (orden.dir === 1 ? '▲' : '▼') : ''}
-                              </span>
-                            </button>
-                            <input
-                              className="rp-th-filter"
-                              type="text"
-                              placeholder="Filtrar"
-                              value={filtros[column] || ''}
-                              onChange={(e) => setFiltros((prev) => ({ ...prev, [column]: e.target.value }))}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <div className="rp-th-head">
+                              <button
+                                type="button"
+                                className="rp-th-sort"
+                                onClick={() => ordenarColumna(column)}
+                              >
+                                {column}
+                                <span className="rp-sort-ind">
+                                  {orden.col === column ? (orden.dir === 1 ? '▲' : '▼') : ''}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`rp-th-filter-btn${filtrado ? ' rp-active' : ''}${filtroAbierto === column ? ' rp-open' : ''}`}
+                                onClick={(event) => abrirFiltroColumna(event, column)}
+                                aria-label={`Filtrar ${column}`}
+                                title="Filtrar"
+                              >
+                                <IconFiltro activo={filtrado} />
+                              </button>
+                            </div>
                           </th>
-                        ))}
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
@@ -917,6 +1073,55 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
             </>
           )}
         </div>
+
+        {filtroAbierto && createPortal(
+          <div
+            ref={filtroPanelRef}
+            className="rp-excel-filter"
+            style={{ top: filtroPos.top, left: filtroPos.left }}
+            role="dialog"
+            aria-label={`Filtrar ${filtroAbierto}`}
+          >
+            <input
+              className="rp-excel-filter__search"
+              type="text"
+              value={busquedaFiltro}
+              onChange={(e) => setBusquedaFiltro(e.target.value)}
+              placeholder="Buscar"
+              autoFocus
+            />
+            <label className="rp-excel-filter__item rp-excel-filter__all">
+              <input
+                type="checkbox"
+                checked={opcionesFiltroVisibles.length > 0 && opcionesFiltroVisibles.every((opcion) => estaSeleccionada(filtroAbierto, opcion.key))}
+                ref={(el) => {
+                  if (!el) return;
+                  const marcadas = opcionesFiltroVisibles.filter((opcion) => estaSeleccionada(filtroAbierto, opcion.key)).length;
+                  el.indeterminate = marcadas > 0 && marcadas < opcionesFiltroVisibles.length;
+                }}
+                onChange={toggleSeleccionarTodo}
+              />
+              (Seleccionar todo)
+            </label>
+            <div className="rp-excel-filter__list">
+              {opcionesFiltroVisibles.length === 0 ? (
+                <div className="rp-excel-filter__empty">Sin coincidencias</div>
+              ) : (
+                opcionesFiltroVisibles.map((opcion) => (
+                  <label key={opcion.key || '__blank'} className="rp-excel-filter__item">
+                    <input
+                      type="checkbox"
+                      checked={estaSeleccionada(filtroAbierto, opcion.key)}
+                      onChange={() => toggleValorFiltro(filtroAbierto, opcion.key)}
+                    />
+                    <span>{opcion.label}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
 
         <p className="rp-footer-note">Supabase · Polaria Mateo</p>
       </div>
