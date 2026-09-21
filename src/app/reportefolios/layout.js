@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Reporte folios - Polaria Mateo',
-  description: 'Tablero de folios digitales / facturas',
+  title: 'Reporte de contabilidad - Polaria Mateo',
+  description: 'Reporte de contabilidad: tablero de folios digitales / facturas',
 };
 
 export default function ReporteFoliosLayout({ children }) {

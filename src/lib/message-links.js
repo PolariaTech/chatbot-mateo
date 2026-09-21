@@ -7,11 +7,15 @@ const OFFERS_REPORT_RE = /aqu[ií]\s+est[aá]\s+el\s+(?:\[)?reporte|\baqu[ií] t
 const NO_LINK_AVAILABLE_RE = /no tengo un enlace|enlace disponible|no (?:tengo|pude)\b.{0,40}\breporte/i;
 
 const REPORT_ROUTES = [
-  { keys: ['folio', 'factura', 'cfdi', 'uuid', 'timbr', 'cancelac'], path: '/reportefolios', label: 'reporte de folios' },
+  {
+    keys: ['contabilidad', 'folio', 'factura', 'cfdi', 'uuid', 'timbr', 'cancelac'],
+    path: '/reportefolios',
+    label: 'reporte de contabilidad',
+  },
   {
     keys: ['gerencia', 'venta', 'compra', 'inventario', 'producto', 'margen', 'utilidad', 'merma', 'dashboard', 'gráfica', 'grafica', 'indicador'],
     path: '/reportegerencia',
-    label: 'reporte de gerencia',
+    label: 'reporte de operaciones',
   },
 ];
 
@@ -64,7 +68,10 @@ function hasUsableReportTarget(text) {
 }
 
 function markdownForRoute(label, route) {
-  const cleanLabel = stripMarkdownMarks(label) || route.label;
+  let cleanLabel = stripMarkdownMarks(label) || route.label;
+  if (route.path === '/reportefolios' && /folio/i.test(cleanLabel)) {
+    cleanLabel = route.label;
+  }
   return `[${cleanLabel}](${route.path})`;
 }
 
