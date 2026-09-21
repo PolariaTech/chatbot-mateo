@@ -5,7 +5,34 @@ import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
 
 const EXCLUIR_SUMA = /^(id_|cid_|codigo|sku|nombre|tipo_|unidad)/i;
-const OCULTAR_COLUMNAS = /^(id_producto|cid_producto|unidad)$/i;
+const OCULTAR_COLUMNAS = /^(id_producto|cid_producto|tipo_producto)$/i;
+const COLUMNAS_PRIMERO = [
+  ['nombre_producto', 'nombreproducto'],
+  ['unidad', 'unidad_medida', 'unidad_sku'],
+  ['cantidad_compra', 'cantidadcompra'],
+  ['cantidad_venta', 'cantidadventa'],
+  ['costo_total_compra', 'costototalcompra'],
+  ['venta_total', 'ventatotal'],
+  ['costo_unitario', 'costounitario'],
+  ['venta_unitaria', 'ventaunitaria'],
+  ['margen_bruto', 'margenbruto'],
+  ['costo_unitario_estimado', 'costounitarioestimado'],
+  ['margen_estimado', 'margenestimado'],
+];
+
+function ordenarColumnas(columnas) {
+  const byLower = new Map(columnas.map((col) => [col.toLowerCase(), col]));
+  const usados = new Set();
+  const primero = [];
+  COLUMNAS_PRIMERO.forEach((aliases) => {
+    const actual = aliases.map((alias) => byLower.get(alias)).find(Boolean);
+    if (actual && !usados.has(actual)) {
+      primero.push(actual);
+      usados.add(actual);
+    }
+  });
+  return [...primero, ...columnas.filter((col) => !usados.has(col))];
+}
 const RATIOS = {
   costo_unitario: ['costo_total_compra', 'cantidad_compra'],
   venta_unitaria: ['venta_total', 'cantidad_venta'],
@@ -42,6 +69,8 @@ const PORCENTAJE_1 = {
   margen_estimado: true,
 };
 const NO_SUMAR = {
+  costo_unitario: true,
+  venta_unitaria: true,
   costo_flete_out: true,
   costo_flete_in: true,
   costo_receta: true,
@@ -118,9 +147,7 @@ function margenEstimadoTotal(rows) {
 }
 
 function totalColumna(nombre, rows) {
-  if (nombre === 'margen_bruto') return margenBrutoTotal(rows);
-  if (nombre === 'margen_estimado') return margenEstimadoTotal(rows);
-  if (NO_SUMAR[nombre] || (PORCENTAJE_1[nombre] && !RATIOS[nombre])) return null;
+  if (NO_SUMAR[nombre] || PORCENTAJE_1[nombre]) return null;
   if (RATIOS[nombre]) {
     const num = sumaColumna(rows, RATIOS[nombre][0]);
     const den = sumaColumna(rows, RATIOS[nombre][1]);
@@ -180,7 +207,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const [rows, setRows] = useState(null);
   const [tab, setTab] = useState('tabla');
   const [filtros, setFiltros] = useState({});
-  const [orden, setOrden] = useState({ col: null, dir: 1 });
+  const [orden, setOrden] = useState({ col: 'venta_total', dir: -1 });
 
   const chartVentasRef = useRef(null);
   const chartCantidadRef = useRef(null);
@@ -190,7 +217,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
   const columnas = useMemo(() => {
     if (!rows?.length) return [];
-    return Object.keys(rows[0]).filter((column) => !OCULTAR_COLUMNAS.test(column));
+    return ordenarColumnas(Object.keys(rows[0]).filter((column) => !OCULTAR_COLUMNAS.test(column)));
   }, [rows]);
 
   const numericas = useMemo(() => {
@@ -219,27 +246,27 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       }),
     );
 
-    if (orden.col) {
-      const col = orden.col;
-      const dir = orden.dir;
-      const numerica = numericas[col];
-      visibles = visibles.slice().sort((a, b) => {
-        const va = a[col];
-        const vb = b[col];
-        if (numerica) {
-          const na = aNumero(va);
-          const nb = aNumero(vb);
-          if (na === null && nb === null) return 0;
-          if (na === null) return 1;
-          if (nb === null) return -1;
-          return (na - nb) * dir;
-        }
-        return String(va || '').localeCompare(String(vb || ''), 'es', {
-          numeric: true,
-          sensitivity: 'base',
-        }) * dir;
-      });
-    }
+    const colOrden = orden.col
+      || (visibles[0] && ('venta_total' in visibles[0] ? 'venta_total' : 'ventatotal'))
+      || 'venta_total';
+    const dirOrden = orden.col ? orden.dir : -1;
+    const numerica = numericas[colOrden] ?? true;
+    visibles = visibles.slice().sort((a, b) => {
+      const va = a[colOrden];
+      const vb = b[colOrden];
+      if (numerica) {
+        const na = aNumero(va);
+        const nb = aNumero(vb);
+        if (na === null && nb === null) return 0;
+        if (na === null) return 1;
+        if (nb === null) return -1;
+        return (na - nb) * dirOrden;
+      }
+      return String(va || '').localeCompare(String(vb || ''), 'es', {
+        numeric: true,
+        sensitivity: 'base',
+      }) * dirOrden;
+    });
 
     return visibles;
   }, [rows, columnas, filtros, orden, numericas]);
@@ -438,11 +465,13 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     }
 
     try {
-      const worksheet = XLSX.utils.json_to_sheet(visibles);
+      const columns = [
+        ...columnas,
+        ...Object.keys(visibles[0]).filter((column) => !columnas.includes(column)),
+      ];
+      const worksheet = XLSX.utils.json_to_sheet(visibles, { header: columns });
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Gerencia');
-
-      const columns = Object.keys(visibles[0]);
       worksheet['!cols'] = columns.map((column) => {
         let maxLength = column.length;
         visibles.forEach((row) => {
