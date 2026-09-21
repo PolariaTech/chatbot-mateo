@@ -1269,6 +1269,75 @@ a.polaria-topbar-btn--mateo {
   cursor: pointer;
 }
 
+.pwa-install-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--t20);
+  border-radius: 16px;
+  background: #071a16;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.pwa-install-banner__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--w);
+}
+
+.pwa-install-banner__text strong {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.pwa-install-banner__text span {
+  color: var(--w50);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.pwa-install-banner__cta {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #03211c;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwa-install-banner__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--w08);
+  color: var(--w50);
+  cursor: pointer;
+}
+
+@media (min-width: 769px) {
+  .pwa-install-banner {
+    display: none;
+  }
+}
+
 .topbar-title {
   display: flex;
   align-items: center;

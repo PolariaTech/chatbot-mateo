@@ -1,84 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FaDownload, FaShareSquare } from "react-icons/fa";
+import { FaDownload, FaShareSquare, FaTimes } from "react-icons/fa";
+import { usePwaInstall } from "../hooks/usePwaInstall";
 
-function isStandalone() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true
-  );
-}
+export default function PWAInstallButton({ variant = "icon" }) {
+  const {
+    showUi,
+    showBanner,
+    showHint,
+    setShowHint,
+    isIOSDevice,
+    isMobileDevice,
+    install,
+    dismissBanner,
+  } = usePwaInstall();
 
-function isIOS() {
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-    !window.MSStream
-  );
-}
+  if (variant === "banner") {
+    if (!showBanner) return null;
 
-export default function PWAInstallButton() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showHint, setShowHint] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const [isIOSDevice, setIsIOSDevice] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
+    return (
+      <div className="pwa-install-banner" role="dialog" aria-label="Instalar aplicación">
+        <div className="pwa-install-banner__text">
+          <strong>Instalar Polaria Mateo</strong>
+          <span>Agrégala a tu pantalla de inicio para abrirla como app.</span>
+        </div>
+        <button type="button" className="pwa-install-banner__cta" onClick={install}>
+          Instalar
+        </button>
+        <button
+          type="button"
+          className="pwa-install-banner__close"
+          onClick={dismissBanner}
+          aria-label="Cerrar"
+        >
+          <FaTimes size={14} aria-hidden="true" />
+        </button>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (isStandalone()) {
-      return;
-    }
-
-    const mobile = window.matchMedia("(max-width: 768px)").matches;
-    setIsMobileDevice(mobile);
-
-    if (isIOS()) {
-      setIsIOSDevice(true);
-      setVisible(true);
-      return;
-    }
-
-    const handleBeforeInstallPrompt = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-      setVisible(true);
-    };
-
-    const handleAppInstalled = () => {
-      setVisible(false);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    if (mobile) {
-      setVisible(true);
-    }
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-
-      if (outcome === "accepted") {
-        setVisible(false);
-      }
-
-      setDeferredPrompt(null);
-      return;
-    }
-
-    setShowHint(true);
-  };
-
-  if (!visible) {
+  if (!showUi) {
     return null;
   }
 
@@ -87,7 +48,7 @@ export default function PWAInstallButton() {
       <button
         type="button"
         className="polaria-topbar-btn polaria-topbar-btn--teal polaria-topbar-btn--icon-only"
-        onClick={handleInstall}
+        onClick={install}
         aria-label="Instalar app"
         title="Instalar app"
       >

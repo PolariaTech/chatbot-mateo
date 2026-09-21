@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { markPwaInstalled } from "../lib/pwa-install";
 
 export default function PWARegister() {
   useEffect(() => {
@@ -17,6 +18,10 @@ export default function PWARegister() {
     };
 
     registerServiceWorker();
+
+    const onInstalled = () => markPwaInstalled();
+    window.addEventListener("appinstalled", onInstalled);
+    return () => window.removeEventListener("appinstalled", onInstalled);
   }, []);
 
   return null;

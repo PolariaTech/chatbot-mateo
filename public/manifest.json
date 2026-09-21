@@ -5,6 +5,14 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "id": "/",
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://chatbot-mateo.vercel.app/manifest.json"
+    }
+  ],
   "orientation": "portrait",
   "background_color": "#020609",
   "theme_color": "#020609",
