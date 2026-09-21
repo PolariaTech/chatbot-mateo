@@ -351,6 +351,15 @@
   gap: 12px;
 }
 
+.reportes-root td.rp-margen-scale {
+  font-weight: 700;
+  color: #1c1c1c;
+}
+
+.reportes-root tr:hover td.rp-margen-scale {
+  filter: brightness(1.06);
+}
+
 .reportes-root .rp-row-count {
   color: var(--rp-muted);
   font-size: 13px;

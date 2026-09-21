@@ -90,6 +90,17 @@ function IconPlus() {
   );
 }
 
+function IconTrash() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 6h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconChat() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -166,6 +177,7 @@ export default function Home() {
     nuevoChat,
     mostrarInicio,
     abrirConversacion,
+    eliminarConversacion,
     enviarMensaje,
   } = useChat({
     user,
@@ -266,6 +278,19 @@ export default function Home() {
     lastAutoEmbedRef.current = null;
     closeEmbed();
     abrirConversacion(id);
+  };
+
+  const handleEliminarConversacion = async (event, id) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const confirmar = window.confirm('¿Eliminar esta conversación del historial?');
+    if (!confirmar) return;
+
+    await eliminarConversacion(id);
+    if (activeConversacionId === id) {
+      closeEmbed();
+      lastAutoEmbedRef.current = null;
+    }
   };
 
   const displayName = isAuthenticated ? getDisplayName(user) : '';
@@ -376,26 +401,42 @@ export default function Home() {
             <div className="history-empty">Sin conversaciones aún</div>
           )}
           {conversaciones.map((conversacion) => (
-            <button
+            <div
               key={conversacion.idConversacion}
-              type="button"
               className={`history-item${activeConversacionId === conversacion.idConversacion ? ' active' : ''}`}
-              onClick={() => handleAbrirConversacion(conversacion.idConversacion)}
             >
-              <span className="history-item__icon">
-                <IconChat />
-              </span>
-              <span className="history-item__body">
-                <span className="history-item__title">
-                  {conversacion.titulo || 'Nueva conversación'}
+              <button
+                type="button"
+                className="history-item__open"
+                onClick={() => handleAbrirConversacion(conversacion.idConversacion)}
+              >
+                <span className="history-item__icon">
+                  <IconChat />
                 </span>
-                {(conversacion.updatedAt || conversacion.createdAt) && (
-                  <span className="history-item__date">
-                    {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
+                <span className="history-item__body">
+                  <span className="history-item__title">
+                    {conversacion.titulo || 'Nueva conversación'}
                   </span>
+                  {(conversacion.updatedAt || conversacion.createdAt) && (
+                    <span className="history-item__date">
+                      {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
+                    </span>
+                  )}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="history-item__delete"
+                onClick={(event) => handleEliminarConversacion(
+                  event,
+                  conversacion.idConversacion,
                 )}
-              </span>
-            </button>
+                aria-label={`Eliminar ${conversacion.titulo || 'conversación'}`}
+                title="Eliminar conversación"
+              >
+                <IconTrash />
+              </button>
+            </div>
           ))}
         </div>
 

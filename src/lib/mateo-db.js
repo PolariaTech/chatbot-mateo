@@ -43,6 +43,18 @@ export async function getConversacionForUser(supabase, idConversacion, idUsuario
     .select('id_conversacion, titulo, created_at, updated_at')
     .eq('id_conversacion', idConversacion)
     .eq('id_usuario', idUsuario)
+    .eq('esta_activa', true)
+    .maybeSingle();
+}
+
+export async function deactivateConversacion(supabase, idConversacion, idUsuario) {
+  return supabase
+    .from('mateo_conversacion')
+    .update({ esta_activa: false })
+    .eq('id_conversacion', idConversacion)
+    .eq('id_usuario', idUsuario)
+    .eq('esta_activa', true)
+    .select('id_conversacion')
     .maybeSingle();
 }
 

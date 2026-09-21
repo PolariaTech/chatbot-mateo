@@ -163,6 +163,29 @@ export function useChat({
     [accessToken, canPersist],
   );
 
+  const eliminarConversacion = useCallback(
+    async (idConversacion) => {
+      if (!canPersist || !idConversacion) return;
+
+      try {
+        await mateoApi.deleteConversacion(accessToken, idConversacion);
+        setConversaciones((prev) => prev.filter((item) => item.idConversacion !== idConversacion));
+        setPersistError(null);
+
+        if (activeConversacionId === idConversacion) {
+          setMessages([]);
+          setActiveConversacionId(null);
+          setInputValue('');
+          setShowWelcome(true);
+        }
+      } catch (error) {
+        if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
+        setPersistError(error.message || 'No se pudo eliminar la conversación.');
+      }
+    },
+    [accessToken, activeConversacionId, canPersist],
+  );
+
   const enviarMensaje = async (textoOverride) => {
     const texto = (typeof textoOverride === 'string' ? textoOverride : inputValue).trim();
     if (!texto || isSending) return;
@@ -274,6 +297,7 @@ export function useChat({
     nuevoChat,
     mostrarInicio,
     abrirConversacion,
+    eliminarConversacion,
     enviarMensaje,
   };
 }

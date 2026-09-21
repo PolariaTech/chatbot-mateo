@@ -46,6 +46,14 @@ export async function fetchMensajes(accessToken, idConversacion) {
   return data.mensajes ?? [];
 }
 
+export async function deleteConversacion(accessToken, idConversacion) {
+  const response = await fetch(`/api/mateo/conversaciones/${idConversacion}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+  await parseResponse(response);
+}
+
 export async function saveMensaje(accessToken, idConversacion, payload) {
   const response = await fetch(`/api/mateo/conversaciones/${idConversacion}/mensajes`, {
     method: 'POST',

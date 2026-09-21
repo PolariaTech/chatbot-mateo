@@ -39,11 +39,64 @@ function esColumnaNombreProducto(column) {
   return /^(nombre_producto|nombreproducto)$/i.test(column);
 }
 
-function claseCelda(column, numericas) {
+function claseCelda(column, numericas, extra = '') {
   return [
     numericas[column] ? 'rp-num' : '',
     esColumnaNombreProducto(column) ? 'rp-col-sticky' : '',
+    extra,
   ].filter(Boolean).join(' ');
+}
+
+function esColumnaMargen(column) {
+  return /^(margen_bruto|margenbruto|margen_estimado|margenestimado)$/i.test(column);
+}
+
+const COLOR_MARGEN_MIN = { r: 248, g: 105, b: 107 };
+const COLOR_MARGEN_MED = { r: 255, g: 235, b: 132 };
+const COLOR_MARGEN_MAX = { r: 99, g: 190, b: 123 };
+
+function mezclarColor(a, b, t) {
+  const p = Math.min(1, Math.max(0, t));
+  return {
+    r: Math.round(a.r + (b.r - a.r) * p),
+    g: Math.round(a.g + (b.g - a.g) * p),
+    b: Math.round(a.b + (b.b - a.b) * p),
+  };
+}
+
+function cssRgb(color) {
+  return `rgb(${color.r}, ${color.g}, ${color.b})`;
+}
+
+function escalaMargenColumna(rows, column) {
+  const valores = (rows || [])
+    .map((row) => aNumero(row[column]))
+    .filter((n) => n !== null)
+    .sort((a, b) => a - b);
+  if (!valores.length) return null;
+  const min = valores[0];
+  const max = valores[valores.length - 1];
+  const medio = percentil(valores, 0.5);
+  return { min, medio, max };
+}
+
+function estiloMargen(column, valor, escala) {
+  if (!esColumnaMargen(column) || !escala) return null;
+  const n = aNumero(valor);
+  if (n === null) return null;
+  if (escala.min === escala.max) {
+    return { backgroundColor: cssRgb(COLOR_MARGEN_MED) };
+  }
+
+  let color;
+  if (n <= escala.medio) {
+    const span = escala.medio - escala.min || 1;
+    color = mezclarColor(COLOR_MARGEN_MIN, COLOR_MARGEN_MED, (n - escala.min) / span);
+  } else {
+    const span = escala.max - escala.medio || 1;
+    color = mezclarColor(COLOR_MARGEN_MED, COLOR_MARGEN_MAX, (n - escala.medio) / span);
+  }
+  return { backgroundColor: cssRgb(color) };
 }
 const RATIOS = {
   costo_unitario: ['costo_total_compra', 'cantidad_compra'],
@@ -335,6 +388,16 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
     return visibles;
   }, [rows, columnas, filtros, orden, numericas]);
+
+  const escalasMargen = useMemo(() => {
+    const map = {};
+    columnas.forEach((column) => {
+      if (esColumnaMargen(column)) {
+        map[column] = escalaMargenColumna(filasVisibles, column);
+      }
+    });
+    return map;
+  }, [columnas, filasVisibles]);
 
   const topVentas = useMemo(() => topProductos(rows, 'venta_total'), [rows]);
   const topCantidad = useMemo(() => topProductos(rows, 'cantidad_venta'), [rows]);
@@ -744,15 +807,26 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                       ) : (
                         filasVisibles.map((row, index) => (
                           <tr key={row.id_producto || row.codigo_producto || index}>
-                            {columnas.map((column) => (
-                              <td key={column} className={claseCelda(column, numericas)}>
+                            {columnas.map((column) => {
+                              const estilo = estiloMargen(column, row[column], escalasMargen[column]);
+                              return (
+                              <td
+                                key={column}
+                                className={claseCelda(
+                                  column,
+                                  numericas,
+                                  estilo ? 'rp-margen-scale' : '',
+                                )}
+                                style={estilo || undefined}
+                              >
                                 {numericas[column]
                                   ? formatoNumero(row[column], column)
                                   : row[column] == null
                                     ? ''
                                     : String(row[column])}
                               </td>
-                            ))}
+                              );
+                            })}
                           </tr>
                         ))
                       )}
