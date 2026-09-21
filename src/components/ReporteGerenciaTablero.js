@@ -34,6 +34,17 @@ function ordenarColumnas(columnas) {
   });
   return [...primero, ...columnas.filter((col) => !usados.has(col))];
 }
+
+function esColumnaNombreProducto(column) {
+  return /^(nombre_producto|nombreproducto)$/i.test(column);
+}
+
+function claseCelda(column, numericas) {
+  return [
+    numericas[column] ? 'rp-num' : '',
+    esColumnaNombreProducto(column) ? 'rp-col-sticky' : '',
+  ].filter(Boolean).join(' ');
+}
 const RATIOS = {
   costo_unitario: ['costo_total_compra', 'cantidad_compra'],
   venta_unitaria: ['venta_total', 'cantidad_venta'],
@@ -350,7 +361,12 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, ticks, grid: { color: grid } },
+        x: {
+          position: 'top',
+          beginAtZero: true,
+          ticks,
+          grid: { color: grid },
+        },
         y: {
           ticks: { ...ticks, autoSkip: false, font: { size: 11 } },
           grid: { color: grid },
@@ -690,12 +706,12 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
               </div>
 
               <div className={`rp-tab-panel${tab === 'tabla' ? ' rp-active' : ''}`}>
-                <div className="rp-table-container">
+                <div className="rp-table-container rp-table-sticky-name">
                   <table>
                     <thead>
                       <tr>
                         {columnas.map((column) => (
-                          <th key={column} className={numericas[column] ? 'rp-num' : ''}>
+                          <th key={column} className={claseCelda(column, numericas)}>
                             <button
                               type="button"
                               className="rp-th-sort"
@@ -729,7 +745,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                         filasVisibles.map((row, index) => (
                           <tr key={row.id_producto || row.codigo_producto || index}>
                             {columnas.map((column) => (
-                              <td key={column} className={numericas[column] ? 'rp-num' : ''}>
+                              <td key={column} className={claseCelda(column, numericas)}>
                                 {numericas[column]
                                   ? formatoNumero(row[column], column)
                                   : row[column] == null
@@ -744,10 +760,16 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                     <tfoot>
                       <tr>
                         {columnas.map((column, i) => {
-                          if (i === 0) return <td key={column}>Total</td>;
+                          if (i === 0) {
+                            return (
+                              <td key={column} className={claseCelda(column, numericas)}>
+                                Total
+                              </td>
+                            );
+                          }
                           const total = totalColumna(column, filasVisibles);
                           return (
-                            <td key={column} className={numericas[column] ? 'rp-num' : ''}>
+                            <td key={column} className={claseCelda(column, numericas)}>
                               {total === null ? '' : formatoNumero(total, column)}
                             </td>
                           );

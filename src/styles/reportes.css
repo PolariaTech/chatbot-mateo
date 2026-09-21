@@ -476,6 +476,35 @@
   border-top: 1px solid rgba(46, 230, 168, 0.35);
 }
 
+.reportes-root .rp-table-sticky-name table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.reportes-root .rp-table-sticky-name .rp-col-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 200px;
+  max-width: 280px;
+  background: #0b1f1a;
+  box-shadow: 6px 0 10px -6px rgba(0, 0, 0, 0.65);
+}
+
+.reportes-root .rp-table-sticky-name th.rp-col-sticky {
+  z-index: 4;
+  background: #0d221c;
+}
+
+.reportes-root .rp-table-sticky-name tfoot td.rp-col-sticky {
+  z-index: 3;
+  background: #0f2c24;
+}
+
+.reportes-root .rp-table-sticky-name tr:hover td.rp-col-sticky {
+  background: #123028;
+}
+
 .reportes-root .rp-tabs {
   display: flex;
   gap: 8px;
