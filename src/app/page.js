@@ -441,7 +441,7 @@ export default function Home() {
             </div>
 
             <p className="welcome-description">
-              Soy Mateo. Una IA estratégica para el control inteligente de tus ventas, compras y utilidades.
+              Soy Mateo. Te ayudo a ver ventas, compras, márgenes e inventario por producto, y el estado de tus facturas.
             </p>
 
             <div className="action-grid">

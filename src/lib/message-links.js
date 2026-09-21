@@ -7,11 +7,12 @@ const OFFERS_REPORT_RE = /aqu[ií]\s+est[aá]\s+el\s+(?:\[)?reporte|\baqu[ií] t
 const NO_LINK_AVAILABLE_RE = /no tengo un enlace|enlace disponible|no (?:tengo|pude)\b.{0,40}\breporte/i;
 
 const REPORT_ROUTES = [
-  { keys: ['gerencia'], path: '/reportegerencia', label: 'reporte de gerencia' },
-  { keys: ['compra'], path: '/reportecompras', label: 'reporte de compras' },
-  { keys: ['inventario'], path: '/reporteinventario', label: 'reporte de inventario' },
-  { keys: ['folio'], path: '/reportefolios', label: 'reporte de folios' },
-  { keys: ['venta'], path: '/reporteventas', label: 'reporte de ventas' },
+  { keys: ['folio', 'factura', 'cfdi', 'uuid', 'timbr', 'cancelac'], path: '/reportefolios', label: 'reporte de folios' },
+  {
+    keys: ['gerencia', 'venta', 'compra', 'inventario', 'producto', 'margen', 'utilidad', 'merma', 'dashboard', 'gráfica', 'grafica', 'indicador'],
+    path: '/reportegerencia',
+    label: 'reporte de gerencia',
+  },
 ];
 
 export function stripMarkdownMarks(text) {
@@ -80,7 +81,7 @@ export function normalizeMessageLinks(text) {
 
   out = out.replace(INCOMPLETE_MD_LINK_RE, (_, label) => {
     const route = matchReportRoute(label) || matchReportRoute(out);
-    if (!route) return `[${stripMarkdownMarks(label) || 'Ver reporte'}](/reporteventas)`;
+    if (!route) return `[${stripMarkdownMarks(label) || 'Ver reporte'}](/reportegerencia)`;
     return markdownForRoute(label, route);
   });
 
