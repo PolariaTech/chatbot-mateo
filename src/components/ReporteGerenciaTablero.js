@@ -129,23 +129,6 @@ function formatoNumero(valor, columna) {
   return n.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: dec });
 }
 
-function margenBrutoTotal(rows) {
-  const venta = sumaColumna(rows, 'venta_total');
-  const costo = sumaColumna(rows, 'costo_total_compra');
-  return costo ? (venta - costo) / costo : null;
-}
-
-function margenEstimadoTotal(rows) {
-  const venta = sumaColumna(rows, 'venta_total');
-  const costoEst = rows.reduce((acc, row) => {
-    const cu = aNumero(row.costo_unitario_estimado);
-    const qty = aNumero(row.cantidad_venta);
-    if (cu == null || qty == null) return acc;
-    return acc + cu * qty;
-  }, 0);
-  return costoEst ? (venta - costoEst) / costoEst : null;
-}
-
 function totalColumna(nombre, rows) {
   if (NO_SUMAR[nombre] || PORCENTAJE_1[nombre]) return null;
   if (RATIOS[nombre]) {
@@ -159,7 +142,21 @@ function totalColumna(nombre, rows) {
 
 function etiquetaProducto(row) {
   const n = String(row.nombre_producto || row.codigo_producto || '');
-  return n.length > 22 ? `${n.slice(0, 21)}…` : n;
+  return n.length > 36 ? `${n.slice(0, 35)}…` : n;
+}
+
+const TOP_PRODUCTOS = 40;
+const ALTURA_BARRA = 36;
+
+function topProductos(rows, campo) {
+  return (rows || [])
+    .slice()
+    .sort((a, b) => (aNumero(b[campo]) || 0) - (aNumero(a[campo]) || 0))
+    .slice(0, TOP_PRODUCTOS);
+}
+
+function alturaGrafica(n) {
+  return Math.max(240, n * ALTURA_BARRA);
 }
 
 function fechaAyerIso() {
@@ -211,7 +208,6 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
   const chartVentasRef = useRef(null);
   const chartCantidadRef = useRef(null);
-  const chartUnidadesRef = useRef(null);
   const graficosRef = useRef([]);
   const cargaIdRef = useRef(0);
 
@@ -271,6 +267,9 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     return visibles;
   }, [rows, columnas, filtros, orden, numericas]);
 
+  const topVentas = useMemo(() => topProductos(rows, 'venta_total'), [rows]);
+  const topCantidad = useMemo(() => topProductos(rows, 'cantidad_venta'), [rows]);
+
   function destruirGraficos() {
     graficosRef.current.forEach((g) => g.destroy());
     graficosRef.current = [];
@@ -284,19 +283,21 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       return undefined;
     }
 
-    const top = rows
-      .slice()
-      .sort((a, b) => (aNumero(b.venta_total) || 0) - (aNumero(a.venta_total) || 0))
-      .slice(0, 8);
-    const topQty = rows
-      .slice()
-      .sort((a, b) => (aNumero(b.cantidad_venta) || 0) - (aNumero(a.cantidad_venta) || 0))
-      .slice(0, 8);
-
-    const labels = top.map(etiquetaProducto);
-    const labelsQty = topQty.map(etiquetaProducto);
     const grid = 'rgba(90, 200, 160, 0.12)';
     const ticks = { color: '#8aa89c' };
+    const opciones = {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks, grid: { color: grid } },
+        y: {
+          ticks: { ...ticks, autoSkip: false, font: { size: 11 } },
+          grid: { color: grid },
+        },
+      },
+    };
 
     destruirGraficos();
 
@@ -305,22 +306,14 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
         new Chart(chartVentasRef.current, {
           type: 'bar',
           data: {
-            labels,
+            labels: topVentas.map(etiquetaProducto),
             datasets: [{
               label: 'Venta total',
-              data: top.map((r) => aNumero(r.venta_total) || 0),
+              data: topVentas.map((r) => aNumero(r.venta_total) || 0),
               backgroundColor: 'rgba(46, 230, 168, 0.75)',
             }],
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks, grid: { color: grid } },
-              y: { ticks, grid: { color: grid } },
-            },
-          },
+          options: opciones,
         }),
       );
     }
@@ -330,65 +323,20 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
         new Chart(chartCantidadRef.current, {
           type: 'bar',
           data: {
-            labels: labelsQty,
+            labels: topCantidad.map(etiquetaProducto),
             datasets: [{
               label: 'Cantidad venta',
-              data: topQty.map((r) => aNumero(r.cantidad_venta) || 0),
+              data: topCantidad.map((r) => aNumero(r.cantidad_venta) || 0),
               backgroundColor: 'rgba(46, 230, 168, 0.75)',
             }],
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks, grid: { color: grid } },
-              y: { ticks, grid: { color: grid } },
-            },
-          },
-        }),
-      );
-    }
-
-    if (chartUnidadesRef.current) {
-      graficosRef.current.push(
-        new Chart(chartUnidadesRef.current, {
-          type: 'bar',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: 'Compra',
-                data: top.map((r) => aNumero(r.cantidad_compra) || 0),
-                backgroundColor: 'rgba(122, 215, 255, 0.8)',
-              },
-              {
-                label: 'Venta',
-                data: top.map((r) => aNumero(r.cantidad_venta) || 0),
-                backgroundColor: 'rgba(46, 230, 168, 0.8)',
-              },
-              {
-                label: 'Merma',
-                data: top.map((r) => aNumero(r.cantidad_merma_desecho) || 0),
-                backgroundColor: 'rgba(230, 208, 138, 0.85)',
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#f4fffb' } } },
-            scales: {
-              x: { ticks, grid: { color: grid } },
-              y: { stacked: false, ticks, grid: { color: grid } },
-            },
-          },
+          options: opciones,
         }),
       );
     }
 
     return () => destruirGraficos();
-  }, [tab, rows]);
+  }, [tab, rows, topVentas, topCantidad]);
 
   async function cargarTablero() {
     const cargaId = cargaIdRef.current + 1;
@@ -500,8 +448,6 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
         ventaImp: sumaColumna(rows, 'venta_total'),
         mermaImp: sumaColumna(rows, 'costo_total_merma_desecho'),
         invImp: sumaColumna(rows, 'valor_inventario'),
-        margenBruto: margenBrutoTotal(rows),
-        margenEstimado: margenEstimadoTotal(rows),
         skus: rows.length,
       }
     : null;
@@ -734,26 +680,18 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                     </div>
                     <div className="rp-kpi">
                       <div className="rp-kpi-label">Merma</div>
-                      <div className="rp-kpi-caption">Costo de merma / desecho</div>
+                      <div className="rp-kpi-caption">Costo de merma - desecho</div>
                       <div className="rp-kpi-value">{formatoNumero(kpis.mermaImp, 'costo_total_merma_desecho')}</div>
                       <div className="rp-kpi-sub">Cantidad de merma  {formatoNumero(kpis.mermaQty, 'cantidad_merma_desecho')}</div>
                     </div>
                     <div className="rp-kpi">
                       <div className="rp-kpi-label">Inventario</div>
-                      <div className="rp-kpi-caption">Valor en inventario</div>
+                      <div className="rp-kpi-caption">Valor en inventario a hoy</div>
                       <div className="rp-kpi-value">{formatoNumero(kpis.invImp, 'valor_inventario')}</div>
                       <div className="rp-kpi-sub">Existencia actual  {formatoNumero(kpis.existQty, 'existencia_actual')}</div>
                     </div>
                     <div className="rp-kpi">
-                      <div className="rp-kpi-label">Margen bruto</div>
-                      <div className="rp-kpi-caption">Sobre costo de compra</div>
-                      <div className="rp-kpi-value">{formatoNumero(kpis.margenBruto, 'margen_bruto')}</div>
-                      <div className="rp-kpi-sub">
-                        Estimado  {formatoNumero(kpis.margenEstimado, 'margen_estimado')}
-                      </div>
-                    </div>
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">SKUs</div>
+                      <div className="rp-kpi-label">Cantidad productos</div>
                       <div className="rp-kpi-caption">Productos en el tablero</div>
                       <div className="rp-kpi-value">{kpis.skus.toLocaleString('es-MX')}</div>
                       <div className="rp-kpi-sub">Productos del período</div>
@@ -763,15 +701,19 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                 <div className="rp-charts">
                   <div className="rp-chart-card">
                     <h3>Top productos por venta ($)</h3>
-                    <div className="rp-chart-wrap"><canvas ref={chartVentasRef} /></div>
+                    <div className="rp-chart-scroll">
+                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topVentas.length) }}>
+                        <canvas ref={chartVentasRef} />
+                      </div>
+                    </div>
                   </div>
                   <div className="rp-chart-card">
                     <h3>Top productos por venta (cantidades)</h3>
-                    <div className="rp-chart-wrap"><canvas ref={chartCantidadRef} /></div>
-                  </div>
-                  <div className="rp-chart-card">
-                    <h3>Compra vs venta vs merma (unidades)</h3>
-                    <div className="rp-chart-wrap"><canvas ref={chartUnidadesRef} /></div>
+                    <div className="rp-chart-scroll">
+                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topCantidad.length) }}>
+                        <canvas ref={chartCantidadRef} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

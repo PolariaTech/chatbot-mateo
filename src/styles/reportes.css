@@ -567,6 +567,31 @@
   height: 260px;
 }
 
+.reportes-root .rp-chart-scroll {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.reportes-root .rp-chart-scroll-inner {
+  position: relative;
+  width: 100%;
+}
+
+.reportes-root .rp-chart-scroll-inner canvas {
+  display: block;
+}
+
+.reportes-root .rp-chart-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reportes-root .rp-chart-scroll::-webkit-scrollbar-thumb {
+  background: rgba(90, 200, 160, 0.35);
+  border-radius: 999px;
+}
+
 @media (min-width: 900px) {
   .reportes-root .rp-kpi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
