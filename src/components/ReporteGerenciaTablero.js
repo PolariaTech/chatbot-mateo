@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 
 const EXCLUIR_SUMA = /^(id_|cid_|codigo|sku|nombre|tipo_|unidad)/i;
 const OCULTAR_COLUMNAS = /^(id_producto|cid_producto|tipo_producto)$/i;
+const MOSTRAR_HISTOGRAMA = false;
 const COLUMNAS_PRIMERO = [
   ['nombre_producto', 'nombreproducto'],
   ['unidad', 'unidad_medida', 'unidad_sku'],
@@ -159,6 +160,62 @@ function alturaGrafica(n) {
   return Math.max(240, n * ALTURA_BARRA);
 }
 
+function aPorcentaje(n) {
+  return Math.abs(n) <= 1 ? n * 100 : n;
+}
+
+function formatoPctEje(n) {
+  return `${n.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function percentil(sorted, p) {
+  if (!sorted.length) return 0;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] * (hi - idx) + sorted[hi] * (idx - lo);
+}
+
+function histogramaMargen(rows, bins = 8) {
+  const valores = (rows || [])
+    .filter((row) => !/servicio/i.test(String(row.tipo_producto || '')))
+    .map((row) => aNumero(row.margen_bruto))
+    .filter((n) => n !== null)
+    .map(aPorcentaje);
+
+  if (!valores.length) return { labels: [], counts: [] };
+
+  const sorted = [...valores].sort((a, b) => a - b);
+  const q1 = percentil(sorted, 0.25);
+  const q3 = percentil(sorted, 0.75);
+  const iqr = q3 - q1;
+  const fence = iqr > 0 ? 1.5 * iqr : 20;
+  const cuerpo = sorted.filter((v) => v >= q1 - fence && v <= q3 + fence);
+  const muestra = cuerpo.length >= 5 ? cuerpo : sorted;
+
+  const min = muestra[0];
+  const max = muestra[muestra.length - 1];
+  const k = Math.max(1, bins);
+  const width = max === min ? 1 : (max - min) / k;
+  const counts = Array(k).fill(0);
+  const labels = [];
+  for (let i = 0; i < k; i += 1) {
+    const a = min + i * width;
+    const b = min + (i + 1) * width;
+    labels.push(`(${formatoPctEje(a)}, ${formatoPctEje(b)}${i === k - 1 ? ']' : ')'}`);
+  }
+
+  muestra.forEach((v) => {
+    let idx = Math.floor((v - min) / width);
+    if (idx < 0) idx = 0;
+    if (idx >= k) idx = k - 1;
+    counts[idx] += 1;
+  });
+
+  return { labels, counts };
+}
+
 function fechaAyerIso() {
   const hoy = new Date();
   const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
@@ -208,6 +265,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
   const chartVentasRef = useRef(null);
   const chartCantidadRef = useRef(null);
+  const chartHistogramaRef = useRef(null);
   const graficosRef = useRef([]);
   const cargaIdRef = useRef(0);
 
@@ -269,6 +327,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
   const topVentas = useMemo(() => topProductos(rows, 'venta_total'), [rows]);
   const topCantidad = useMemo(() => topProductos(rows, 'cantidad_venta'), [rows]);
+  const histograma = useMemo(() => histogramaMargen(rows), [rows]);
 
   function destruirGraficos() {
     graficosRef.current.forEach((g) => g.destroy());
@@ -335,8 +394,44 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       );
     }
 
+    if (MOSTRAR_HISTOGRAMA && chartHistogramaRef.current && histograma.labels.length) {
+      graficosRef.current.push(
+        new Chart(chartHistogramaRef.current, {
+          type: 'bar',
+          data: {
+            labels: histograma.labels,
+            datasets: [{
+              label: 'Frecuencia',
+              data: histograma.counts,
+              backgroundColor: '#ED7D31',
+              borderWidth: 0,
+              barPercentage: 1,
+              categoryPercentage: 1,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                ticks: { ...ticks, maxRotation: 40, minRotation: 40, font: { size: 10 } },
+                grid: { display: false },
+              },
+              y: {
+                beginAtZero: true,
+                ticks: { ...ticks, precision: 0, stepSize: 5 },
+                grid: { color: grid },
+                title: { display: true, text: 'Frecuencia', color: '#8aa89c' },
+              },
+            },
+          },
+        }),
+      );
+    }
+
     return () => destruirGraficos();
-  }, [tab, rows, topVentas, topCantidad]);
+  }, [tab, rows, topVentas, topCantidad, histograma]);
 
   async function cargarTablero() {
     const cargaId = cargaIdRef.current + 1;
@@ -715,6 +810,12 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                       </div>
                     </div>
                   </div>
+                  {MOSTRAR_HISTOGRAMA && (
+                  <div className="rp-chart-card rp-chart-card-wide">
+                    <h3>Frecuencia de margen bruto</h3>
+                    <div className="rp-chart-wrap"><canvas ref={chartHistogramaRef} /></div>
+                  </div>
+                  )}
                 </div>
               </div>
             </>

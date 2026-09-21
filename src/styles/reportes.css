@@ -592,6 +592,10 @@
   border-radius: 999px;
 }
 
+.reportes-root .rp-chart-card-wide .rp-chart-wrap {
+  height: 300px;
+}
+
 @media (min-width: 900px) {
   .reportes-root .rp-kpi-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -599,6 +603,10 @@
 
   .reportes-root .rp-charts {
     grid-template-columns: 1.1fr 1fr;
+  }
+
+  .reportes-root .rp-chart-card-wide {
+    grid-column: 1 / -1;
   }
 }
 
