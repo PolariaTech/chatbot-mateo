@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 const EXCLUIR_SUMA = /^(id_|cid_|codigo|sku|nombre|tipo_|unidad)/i;
 const OCULTAR_COLUMNAS = /^(id_producto|cid_producto|tipo_producto)$/i;
 const MOSTRAR_HISTOGRAMA = false;
+const MOSTRAR_COLORES_MARGEN = false;
 const COLUMNAS_PRIMERO = [
   ['nombre_producto', 'nombreproducto'],
   ['unidad', 'unidad_medida', 'unidad_sku'],
@@ -441,6 +442,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   }, [rows, columnas, filtrosLista, orden, numericas]);
 
   const escalasMargen = useMemo(() => {
+    if (!MOSTRAR_COLORES_MARGEN) return {};
     const map = {};
     columnas.forEach((column) => {
       if (esColumnaMargen(column)) {
