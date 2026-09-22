@@ -807,6 +807,20 @@
     font-size: 12px;
   }
 
+  .reportes-root .rp-table-sticky-name .rp-col-sticky {
+    min-width: 120px;
+    max-width: 120px;
+    width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reportes-root .rp-table-sticky-name th.rp-col-sticky .rp-th-head,
+  .reportes-root .rp-table-sticky-name th.rp-col-sticky .rp-th-sort {
+    min-width: 0;
+  }
+
   .reportes-root .rp-kpi-value {
     font-size: 18px;
   }

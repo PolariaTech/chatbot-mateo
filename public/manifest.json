@@ -13,7 +13,7 @@
       "url": "https://chatbot-mateo.vercel.app/manifest.json"
     }
   ],
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#020609",
   "theme_color": "#020609",
   "categories": ["productivity", "business"],

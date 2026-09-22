@@ -974,6 +974,11 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                                   estilo ? 'rp-margen-scale' : '',
                                 )}
                                 style={estilo || undefined}
+                                title={
+                                  esColumnaNombreProducto(column) && row[column] != null
+                                    ? String(row[column])
+                                    : undefined
+                                }
                               >
                                 {numericas[column]
                                   ? formatoNumero(row[column], column)
