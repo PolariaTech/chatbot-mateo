@@ -1,7 +1,7 @@
 "use client";
 
 import { FaDownload, FaShareSquare, FaTimes } from "react-icons/fa";
-import { usePwaInstall } from "../hooks/usePwaInstall";
+import { usePwaInstall } from "./PwaInstallProvider";
 
 export default function PWAInstallButton({ variant = "icon" }) {
   const {
@@ -22,7 +22,7 @@ export default function PWAInstallButton({ variant = "icon" }) {
       <div className="pwa-install-banner" role="dialog" aria-label="Instalar aplicación">
         <div className="pwa-install-banner__text">
           <strong>Instalar Polaria Mateo</strong>
-          <span>Agrégala a tu pantalla de inicio para abrirla como app.</span>
+          <span>Ábrela como aplicación, sin el navegador.</span>
         </div>
         <button type="button" className="pwa-install-banner__cta" onClick={install}>
           Instalar

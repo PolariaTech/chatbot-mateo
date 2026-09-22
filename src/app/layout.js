@@ -1,6 +1,8 @@
 import "../styles/globals.css";
 import PWARegister from "../components/PWARegister";
 import PWAInstallButton from "../components/PWAInstallButton";
+import { PwaInstallProvider } from "../components/PwaInstallProvider";
+import { PWA_CAPTURE_SCRIPT } from "../lib/pwa-capture-inline";
 
 export const metadata = {
   applicationName: "Polaria Mateo",
@@ -38,10 +40,13 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <script src="/pwa-capture.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: PWA_CAPTURE_SCRIPT }} />
       </head>
       <body>
-        {children}
-        <PWAInstallButton variant="banner" />
+        <PwaInstallProvider>
+          {children}
+          <PWAInstallButton variant="banner" />
+        </PwaInstallProvider>
         <PWARegister />
       </body>
     </html>
