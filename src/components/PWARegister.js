@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { markPwaInstalled } from "../lib/pwa-install";
+import { markPwaInstalled, allowScreenRotation } from "../lib/pwa-install";
 
 export default function PWARegister() {
   useEffect(() => {
+    allowScreenRotation();
+
     if (!("serviceWorker" in navigator)) {
       return;
     }
@@ -20,8 +22,16 @@ export default function PWARegister() {
     registerServiceWorker();
 
     const onInstalled = () => markPwaInstalled();
+    const onFirstGesture = () => {
+      allowScreenRotation();
+      window.removeEventListener("pointerdown", onFirstGesture);
+    };
     window.addEventListener("appinstalled", onInstalled);
-    return () => window.removeEventListener("appinstalled", onInstalled);
+    window.addEventListener("pointerdown", onFirstGesture, { once: true });
+    return () => {
+      window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("pointerdown", onFirstGesture);
+    };
   }, []);
 
   return null;

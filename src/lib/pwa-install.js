@@ -30,6 +30,28 @@ export function isEmbeddedBrowser() {
   }
 }
 
+export async function allowScreenRotation() {
+  const orientation = typeof screen !== 'undefined' ? screen.orientation : null;
+  if (!orientation) return;
+
+  try {
+    orientation.unlock?.();
+  } catch {
+    // ignore
+  }
+
+  if (typeof orientation.lock !== 'function') return;
+  try {
+    await orientation.lock('any');
+  } catch {
+    try {
+      await orientation.lock('natural');
+    } catch {
+      // Some browsers only allow this after a tap.
+    }
+  }
+}
+
 export function readStoredInstalled() {
   try {
     return localStorage.getItem(PWA_INSTALLED_KEY) === '1';

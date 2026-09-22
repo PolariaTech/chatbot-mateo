@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../../hooks/useAuth';
 import { isDirectLoginEnabled, redirectToWmsLogin } from '../../lib/auth-config';
+import { allowScreenRotation } from '../../lib/pwa-install';
 import LoginForm from '../../components/LoginForm';
 import DashboardLoadingScreen from '../../components/DashboardLoadingScreen';
 import { SessionRedirectFallback } from '../../components/SessionStatusFallback';
@@ -19,9 +20,15 @@ export default function ReporteGerenciaPage() {
   const allowDirectLogin = isDirectLoginEnabled();
 
   useEffect(() => {
+    allowScreenRotation();
+    const onFirstGesture = () => allowScreenRotation();
+    window.addEventListener('pointerdown', onFirstGesture, { once: true });
+
     if (isReady && !isAuthenticated && !allowDirectLogin) {
       redirectToWmsLogin();
     }
+
+    return () => window.removeEventListener('pointerdown', onFirstGesture);
   }, [isReady, isAuthenticated, allowDirectLogin]);
 
   if (!isReady) {

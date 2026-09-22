@@ -1,7 +1,6 @@
-const CACHE_NAME = "polaria-ai-v1";
+const CACHE_NAME = "polaria-ai-v2";
 const APP_SHELL = [
   "/",
-  "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
   "/maskable-icon.png"
@@ -39,6 +38,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   const requestUrl = new URL(request.url);
+
+  if (requestUrl.pathname === "/manifest.json") {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
