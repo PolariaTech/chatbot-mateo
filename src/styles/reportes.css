@@ -383,11 +383,11 @@
 
 .reportes-root th,
 .reportes-root td {
-  padding: 12px 14px;
+  padding: 6px 8px;
   text-align: left;
   white-space: nowrap;
   border-bottom: 1px solid rgba(90, 200, 160, 0.1);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .reportes-root th {
@@ -396,8 +396,8 @@
   z-index: 2;
   background: #0d221c;
   color: var(--rp-muted);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   font-weight: 600;
   vertical-align: bottom;
@@ -414,9 +414,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
   margin: 0;
   padding: 0;
   border: none !important;
@@ -427,6 +428,17 @@
   text-transform: inherit;
   cursor: pointer;
   border-radius: 0 !important;
+}
+
+.reportes-root .rp-th-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reportes-root th:not(.rp-col-sticky) .rp-th-label {
+  max-width: 4.4rem;
 }
 
 .reportes-root .rp-th-sort:hover {
@@ -609,8 +621,11 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  min-width: 200px;
-  max-width: 280px;
+  min-width: 160px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: #0b1f1a;
   box-shadow: 6px 0 10px -6px rgba(0, 0, 0, 0.65);
 }
@@ -715,6 +730,54 @@
   font-weight: 600;
 }
 
+.reportes-root .rp-chart-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.reportes-root .rp-chart-card-head h3 {
+  margin: 0;
+}
+
+.reportes-root .rp-chart-toggle {
+  display: inline-flex;
+  border: 1px solid var(--rp-line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(4, 14, 12, 0.55);
+}
+
+.reportes-root .rp-chart-toggle button {
+  margin: 0;
+  padding: 6px 12px;
+  border: none;
+  border-right: 1px solid var(--rp-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--rp-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reportes-root .rp-chart-toggle button:last-child {
+  border-right: none;
+}
+
+.reportes-root .rp-chart-toggle button:hover {
+  border-color: var(--rp-line);
+  color: var(--rp-accent);
+}
+
+.reportes-root .rp-chart-toggle button.rp-active {
+  background: rgba(46, 230, 168, 0.2);
+  color: var(--rp-accent);
+}
+
 .reportes-root .rp-chart-wrap {
   position: relative;
   height: 260px;
@@ -803,7 +866,7 @@
 
   .reportes-root th,
   .reportes-root td {
-    padding: 8px 10px;
+    padding: 6px 6px;
     font-size: 12px;
   }
 

@@ -178,8 +178,8 @@ function formatoNumero(valor, columna) {
   if (valor === null || valor === undefined || valor === '') return '';
   const n = aNumero(valor);
   if (n === null) return String(valor);
-  if (PORCENTAJE_1[columna]) {
-    const pct = Math.abs(n) <= 1 ? n * 100 : n;
+  if (esColumnaMargen(columna) || PORCENTAJE_1[columna]) {
+    const pct = esColumnaMargen(columna) ? n * 100 : (Math.abs(n) <= 1 ? n * 100 : n);
     return `${pct.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   }
   if (DINERO_2DEC[columna]) {
@@ -248,10 +248,6 @@ function alturaGrafica(n) {
   return Math.max(240, n * ALTURA_BARRA);
 }
 
-function aPorcentaje(n) {
-  return Math.abs(n) <= 1 ? n * 100 : n;
-}
-
 function formatoPctEje(n) {
   return `${n.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
@@ -265,43 +261,71 @@ function percentil(sorted, p) {
   return sorted[lo] * (hi - idx) + sorted[hi] * (idx - lo);
 }
 
-function histogramaMargen(rows, bins = 8) {
+function valorMargen(row, campo) {
+  if (campo === 'margen_estimado') {
+    return aNumero(row.margen_estimado ?? row.margenestimado);
+  }
+  return aNumero(row.margen_bruto ?? row.margenbruto);
+}
+
+function anchoBinAgradable(bruto) {
+  if (!(bruto > 0) || !Number.isFinite(bruto)) return 1;
+  const mag = 10 ** Math.floor(Math.log10(bruto));
+  const r = bruto / mag;
+  const nice = r <= 1 ? 1 : r <= 2 ? 2 : r <= 5 ? 5 : 10;
+  return nice * mag;
+}
+
+function histogramaMargen(rows, campo = 'margen_bruto') {
   const valores = (rows || [])
-    .filter((row) => !/servicio/i.test(String(row.tipo_producto || '')))
-    .map((row) => aNumero(row.margen_bruto))
+    .map((row) => valorMargen(row, campo))
     .filter((n) => n !== null)
-    .map(aPorcentaje);
+    .map((n) => n * 100);
 
-  if (!valores.length) return { labels: [], counts: [] };
+  if (!valores.length) return { labels: [], counts: [], colors: [] };
 
-  const sorted = [...valores].sort((a, b) => a - b);
-  const q1 = percentil(sorted, 0.25);
-  const q3 = percentil(sorted, 0.75);
-  const iqr = q3 - q1;
-  const fence = iqr > 0 ? 1.5 * iqr : 20;
-  const cuerpo = sorted.filter((v) => v >= q1 - fence && v <= q3 + fence);
-  const muestra = cuerpo.length >= 5 ? cuerpo : sorted;
+  const n = valores.length;
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
 
-  const min = muestra[0];
-  const max = muestra[muestra.length - 1];
-  const k = Math.max(1, bins);
-  const width = max === min ? 1 : (max - min) / k;
-  const counts = Array(k).fill(0);
-  const labels = [];
-  for (let i = 0; i < k; i += 1) {
-    const a = min + i * width;
-    const b = min + (i + 1) * width;
-    labels.push(`(${formatoPctEje(a)}, ${formatoPctEje(b)}${i === k - 1 ? ']' : ')'}`);
+  if (min === max) {
+    return {
+      labels: [`${formatoPctEje(min)}`],
+      counts: [n],
+      colors: [cssRgb(COLOR_MARGEN_MED)],
+    };
   }
 
-  muestra.forEach((v) => {
-    let idx = Math.floor((v - min) / width);
+  const media = valores.reduce((acc, v) => acc + v, 0) / n;
+  const varianza = valores.reduce((acc, v) => acc + (v - media) ** 2, 0) / Math.max(1, n - 1);
+  const s = Math.sqrt(varianza);
+  const scott = s > 0 ? (3.49 * s) / Math.cbrt(n) : (max - min) / Math.max(1, Math.ceil(Math.sqrt(n)));
+  const width = anchoBinAgradable(scott);
+  let start = Math.floor(min / width) * width;
+  if (Object.is(start, -0)) start = 0;
+  const k = Math.max(1, Math.ceil((max - start) / width));
+  const counts = Array(k).fill(0);
+  const labels = [];
+  const colors = [];
+  for (let i = 0; i < k; i += 1) {
+    const a = start + i * width;
+    const b = a + width;
+    labels.push(`${i === 0 ? '[' : '('}${formatoPctEje(a)}, ${formatoPctEje(b)}]`);
+    const t = k <= 1 ? 0.5 : i / (k - 1);
+    const color = t <= 0.5
+      ? mezclarColor(COLOR_MARGEN_MIN, COLOR_MARGEN_MED, t * 2)
+      : mezclarColor(COLOR_MARGEN_MED, COLOR_MARGEN_MAX, (t - 0.5) * 2);
+    colors.push(cssRgb(color));
+  }
+
+  valores.forEach((v) => {
+    let idx = Math.ceil((v - start) / width) - 1;
     if (idx < 0) idx = 0;
     if (idx >= k) idx = k - 1;
     counts[idx] += 1;
   });
 
-  return { labels, counts };
+  return { labels, counts, colors };
 }
 
 function fechaAyerIso() {
@@ -353,6 +377,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const [busquedaFiltro, setBusquedaFiltro] = useState('');
   const [filtroPos, setFiltroPos] = useState({ top: 0, left: 0 });
   const [orden, setOrden] = useState({ col: 'venta_total', dir: -1 });
+  const [histogramaCampo, setHistogramaCampo] = useState('margen_bruto');
 
   const chartVentasRef = useRef(null);
   const chartCantidadRef = useRef(null);
@@ -465,7 +490,10 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
 
   const topVentas = useMemo(() => topProductos(rows, 'venta_total'), [rows]);
   const topCantidad = useMemo(() => topProductos(rows, 'cantidad_venta'), [rows]);
-  const histograma = useMemo(() => histogramaMargen(rows), [rows]);
+  const histograma = useMemo(
+    () => histogramaMargen(filasVisibles, histogramaCampo),
+    [filasVisibles, histogramaCampo],
+  );
 
   function destruirGraficos() {
     graficosRef.current.forEach((g) => g.destroy());
@@ -546,10 +574,12 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
             datasets: [{
               label: 'Frecuencia',
               data: histograma.counts,
-              backgroundColor: '#ED7D31',
-              borderWidth: 0,
-              barPercentage: 1,
-              categoryPercentage: 1,
+              backgroundColor: histograma.colors,
+              borderColor: 'rgba(244, 255, 251, 0.55)',
+              borderWidth: 1.5,
+              borderSkipped: false,
+              barPercentage: 0.78,
+              categoryPercentage: 0.86,
             }],
           },
           options: {
@@ -926,14 +956,15 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                         {columnas.map((column) => {
                           const filtrado = Array.isArray(filtrosLista[column]);
                           return (
-                          <th key={column} className={claseCelda(column, numericas)}>
+                          <th key={column} className={claseCelda(column, numericas)} title={column}>
                             <div className="rp-th-head">
                               <button
                                 type="button"
                                 className="rp-th-sort"
+                                title={column}
                                 onClick={() => ordenarColumna(column)}
                               >
-                                {column}
+                                <span className="rp-th-label">{column}</span>
                                 <span className="rp-sort-ind">
                                   {orden.col === column ? (orden.dir === 1 ? '▲' : '▼') : ''}
                                 </span>
@@ -1069,8 +1100,32 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   </div>
                   {MOSTRAR_HISTOGRAMA && (
                   <div className="rp-chart-card rp-chart-card-wide">
-                    <h3>Frecuencia de margen bruto</h3>
-                    <div className="rp-chart-wrap"><canvas ref={chartHistogramaRef} /></div>
+                    <div className="rp-chart-card-head">
+                      <h3>
+                        Frecuencia de {histogramaCampo === 'margen_estimado' ? 'margen estimado' : 'margen bruto'}
+                      </h3>
+                      <div className="rp-chart-toggle" role="group" aria-label="Tipo de margen">
+                        <button
+                          type="button"
+                          className={histogramaCampo === 'margen_bruto' ? 'rp-active' : ''}
+                          onClick={() => setHistogramaCampo('margen_bruto')}
+                        >
+                          Margen bruto
+                        </button>
+                        <button
+                          type="button"
+                          className={histogramaCampo === 'margen_estimado' ? 'rp-active' : ''}
+                          onClick={() => setHistogramaCampo('margen_estimado')}
+                        >
+                          Margen estimado
+                        </button>
+                      </div>
+                    </div>
+                    {histograma.labels.length ? (
+                      <div className="rp-chart-wrap"><canvas ref={chartHistogramaRef} /></div>
+                    ) : (
+                      <div className="rp-empty">No hay datos de margen para graficar.</div>
+                    )}
                   </div>
                   )}
                 </div>
