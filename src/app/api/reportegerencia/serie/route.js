@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
 import { resolveReportesSchema } from '../../../../lib/reportes-schema';
-import { consultarTableroSkuRpc, mensajeTimeoutConsulta } from '../../../../lib/reportes-tablero';
+import { consultarSerieVentasDiarias, mensajeTimeoutConsulta } from '../../../../lib/reportes-tablero';
 
 export const maxDuration = 60;
 
@@ -48,15 +48,19 @@ export async function POST(request) {
   const schema = resolveReportesSchema(auth.user.codigoEmpresa);
 
   try {
-    const rows = await consultarTableroSkuRpc({ schema, fechaInicio, fechaFin });
+    const serie = await consultarSerieVentasDiarias({
+      schema,
+      fechaInicio,
+      fechaFin,
+    });
     return NextResponse.json({
       success: true,
       schema,
-      rows,
+      serie,
     });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: mensajeTimeoutConsulta(error, 'tablero') },
+      { success: false, error: mensajeTimeoutConsulta(error, 'volumen') },
       { status: 500 },
     );
   }

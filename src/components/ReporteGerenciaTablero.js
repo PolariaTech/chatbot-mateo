@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
+import IndicadorVolumenVentas from './IndicadorVolumenVentas';
 
 const EXCLUIR_SUMA = /^(id_|cid_|codigo|sku|nombre|tipo_|unidad)/i;
 const OCULTAR_COLUMNAS = /^(id_producto|cid_producto|tipo_producto)$/i;
-const MOSTRAR_HISTOGRAMA = false;
+const MOSTRAR_HISTOGRAMA = true;
 const MOSTRAR_COLORES_MARGEN = false;
 const COLUMNAS_PRIMERO = [
   ['nombre_producto', 'nombreproducto'],
@@ -250,7 +251,7 @@ function alturaGrafica(n) {
 }
 
 function formatoPctEje(n) {
-  return `${n.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  return `${n.toLocaleString('es-MX', { maximumFractionDigits: 0 })}%`;
 }
 
 function percentil(sorted, p) {
@@ -269,14 +270,6 @@ function valorMargen(row, campo) {
   return aNumero(row.margen_bruto ?? row.margenbruto);
 }
 
-function anchoBinAgradable(bruto) {
-  if (!(bruto > 0) || !Number.isFinite(bruto)) return 1;
-  const mag = 10 ** Math.floor(Math.log10(bruto));
-  const r = bruto / mag;
-  const nice = r <= 1 ? 1 : r <= 2 ? 2 : r <= 5 ? 5 : 10;
-  return nice * mag;
-}
-
 function histogramaMargen(rows, campo = 'margen_bruto') {
   const valores = (rows || [])
     .map((row) => valorMargen(row, campo))
@@ -285,33 +278,19 @@ function histogramaMargen(rows, campo = 'margen_bruto') {
 
   if (!valores.length) return { labels: [], counts: [], colors: [] };
 
-  const n = valores.length;
   const min = Math.min(...valores);
   const max = Math.max(...valores);
-
-  if (min === max) {
-    return {
-      labels: [`${formatoPctEje(min)}`],
-      counts: [n],
-      colors: [cssRgb(COLOR_MARGEN_MED)],
-    };
-  }
-
-  const media = valores.reduce((acc, v) => acc + v, 0) / n;
-  const varianza = valores.reduce((acc, v) => acc + (v - media) ** 2, 0) / Math.max(1, n - 1);
-  const s = Math.sqrt(varianza);
-  const scott = s > 0 ? (3.49 * s) / Math.cbrt(n) : (max - min) / Math.max(1, Math.ceil(Math.sqrt(n)));
-  const width = anchoBinAgradable(scott);
+  const width = 20;
   let start = Math.floor(min / width) * width;
   if (Object.is(start, -0)) start = 0;
-  const k = Math.max(1, Math.ceil((max - start) / width));
+  const k = Math.max(1, Math.ceil((max - start) / width) || 1);
   const counts = Array(k).fill(0);
   const labels = [];
   const colors = [];
   for (let i = 0; i < k; i += 1) {
     const a = start + i * width;
     const b = a + width;
-    labels.push(`${i === 0 ? '[' : '('}${formatoPctEje(a)}, ${formatoPctEje(b)}]`);
+    labels.push(`${formatoPctEje(a)}–${formatoPctEje(b)}`);
     const t = k <= 1 ? 0.5 : i / (k - 1);
     const color = t <= 0.5
       ? mezclarColor(COLOR_MARGEN_MIN, COLOR_MARGEN_MED, t * 2)
@@ -320,7 +299,7 @@ function histogramaMargen(rows, campo = 'margen_bruto') {
   }
 
   valores.forEach((v) => {
-    let idx = Math.ceil((v - start) / width) - 1;
+    let idx = Math.floor((v - start) / width);
     if (idx < 0) idx = 0;
     if (idx >= k) idx = k - 1;
     counts[idx] += 1;
@@ -329,13 +308,52 @@ function histogramaMargen(rows, campo = 'margen_bruto') {
   return { labels, counts, colors };
 }
 
-function fechaAyerIso() {
-  const hoy = new Date();
-  const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1);
-  const yyyy = ayer.getFullYear();
-  const mm = String(ayer.getMonth() + 1).padStart(2, '0');
-  const dd = String(ayer.getDate()).padStart(2, '0');
+function isoDesdeFechaLocal(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function hoyLocal() {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+function fechasSemanasHastaHoy(cantidadSemanas) {
+  const hoy = hoyLocal();
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (cantidadSemanas * 7 - 1));
+  return {
+    inicio: isoDesdeFechaLocal(inicio),
+    fin: isoDesdeFechaLocal(hoy),
+  };
+}
+
+function fechasMesesHastaHoy(cantidadMeses) {
+  const hoy = hoyLocal();
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - (cantidadMeses - 1), 1);
+  return {
+    inicio: isoDesdeFechaLocal(inicio),
+    fin: isoDesdeFechaLocal(hoy),
+  };
+}
+
+const RANGOS_PRESET = [
+  { id: '1s', label: 'Última semana', semanas: 1 },
+  { id: '2s', label: 'Últimas 2 semanas', semanas: 2 },
+  { id: '3s', label: 'Últimas 3 semanas', semanas: 3 },
+  { id: '4s', label: 'Últimas 4 semanas', semanas: 4 },
+  { id: '1m', label: 'Último mes', meses: 1 },
+  { id: '3m', label: 'Últimos 3 meses', meses: 3 },
+  { id: '6m', label: 'Últimos 6 meses', meses: 6 },
+];
+
+function fechasDePreset(presetId) {
+  const preset = RANGOS_PRESET.find((item) => item.id === presetId);
+  if (!preset) return null;
+  if (preset.semanas) return fechasSemanasHastaHoy(preset.semanas);
+  if (preset.meses) return fechasMesesHastaHoy(preset.meses);
+  return null;
 }
 
 function isoToDmy(iso) {
@@ -365,10 +383,11 @@ function dmyToIso(value) {
 }
 
 export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }) {
-  const [fechaInicio, setFechaInicio] = useState(fechaAyerIso);
-  const [fechaFin, setFechaFin] = useState(fechaAyerIso);
-  const [fechaInicioTexto, setFechaInicioTexto] = useState(() => isoToDmy(fechaAyerIso()));
-  const [fechaFinTexto, setFechaFinTexto] = useState(() => isoToDmy(fechaAyerIso()));
+  const [fechaInicio, setFechaInicio] = useState(() => fechasDePreset('1s').inicio);
+  const [fechaFin, setFechaFin] = useState(() => fechasDePreset('1s').fin);
+  const [fechaInicioTexto, setFechaInicioTexto] = useState(() => isoToDmy(fechasDePreset('1s').inicio));
+  const [fechaFinTexto, setFechaFinTexto] = useState(() => isoToDmy(fechasDePreset('1s').fin));
+  const [rangoPreset, setRangoPreset] = useState('1s');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [rows, setRows] = useState(null);
@@ -379,12 +398,16 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const [filtroPos, setFiltroPos] = useState({ top: 0, left: 0 });
   const [orden, setOrden] = useState({ col: 'venta_total', dir: -1 });
   const [histogramaCampo, setHistogramaCampo] = useState('margen_bruto');
+  const [serieVentas, setSerieVentas] = useState(null);
+  const [serieLoading, setSerieLoading] = useState(false);
+  const [serieError, setSerieError] = useState('');
 
   const chartVentasRef = useRef(null);
   const chartCantidadRef = useRef(null);
   const chartHistogramaRef = useRef(null);
   const graficosRef = useRef([]);
   const cargaIdRef = useRef(0);
+  const abortCargaRef = useRef(null);
   const filtroPanelRef = useRef(null);
 
   const columnas = useMemo(() => {
@@ -577,11 +600,9 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
               label: 'Frecuencia',
               data: histograma.counts,
               backgroundColor: histograma.colors,
-              borderColor: 'rgba(244, 255, 251, 0.55)',
-              borderWidth: 1.5,
-              borderSkipped: false,
-              barPercentage: 0.78,
-              categoryPercentage: 0.86,
+              borderWidth: 0,
+              barPercentage: 1,
+              categoryPercentage: 1,
             }],
           },
           options: {
@@ -608,7 +629,12 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     return () => destruirGraficos();
   }, [tab, rows, topVentas, topCantidad, histograma]);
 
-  async function cargarTablero() {
+  async function cargarTablero(rangoFechas) {
+    abortCargaRef.current?.abort();
+    const ac = new AbortController();
+    abortCargaRef.current = ac;
+    const inicio = rangoFechas?.inicio || fechaInicio;
+    const fin = rangoFechas?.fin || fechaFin;
     const cargaId = cargaIdRef.current + 1;
     cargaIdRef.current = cargaId;
     setErrorMessage('');
@@ -617,56 +643,72 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     setBusquedaFiltro('');
     setOrden({ col: null, dir: 1 });
     setTab('tabla');
+    setSerieVentas(null);
+    setSerieError('');
+    setSerieLoading(false);
     destruirGraficos();
 
-    if (!esFechaIso(fechaInicio) || !esFechaIso(fechaFin)) {
+    if (!esFechaIso(inicio) || !esFechaIso(fin)) {
       setErrorMessage('Indica fecha inicio y fecha fin (dd/mm/aaaa)');
       return;
     }
-    if (fechaInicio > fechaFin) {
+    if (inicio > fin) {
       setErrorMessage('La fecha inicio no puede ser mayor que la fecha fin');
       return;
     }
 
     setLoading(true);
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    };
+    const body = JSON.stringify({
+      fecha_inicio: inicio,
+      fecha_fin: fin,
+    });
 
-    try {
-      const response = await fetch('/api/reportegerencia/tablero', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
-        }),
-      });
+    const cargarTabla = (async () => {
+      try {
+        const response = await fetch('/api/reportegerencia/tablero', {
+          method: 'POST',
+          headers,
+          body,
+          signal: ac.signal,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (cargaId !== cargaIdRef.current) return;
 
-      const data = await response.json().catch(() => ({}));
-
-      if (response.status === 401) {
-        onSessionInvalid?.();
-        throw new Error(data.error || 'Sesión inválida.');
+        if (response.status === 401) {
+          onSessionInvalid?.();
+          throw new Error(data.error || 'Sesión inválida.');
+        }
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Error ejecutando la consulta');
+        }
+        setRows(data.rows || []);
+      } catch (error) {
+        if (error?.name === 'AbortError' || cargaId !== cargaIdRef.current) return;
+        setRows(null);
+        setErrorMessage(error.message || 'Error ejecutando la consulta');
+      } finally {
+        if (cargaId === cargaIdRef.current) setLoading(false);
       }
+    })();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Error ejecutando la consulta');
-      }
-
-      if (cargaId !== cargaIdRef.current) return;
-      setRows(data.rows || []);
-    } catch (error) {
-      if (cargaId !== cargaIdRef.current) return;
-      setRows(null);
-      setErrorMessage(error.message || 'Error ejecutando la consulta');
-    } finally {
-      if (cargaId === cargaIdRef.current) setLoading(false);
-    }
+    await cargarTabla;
   }
 
   useEffect(() => {
-    cargarTablero();
+    if (!accessToken) {
+      setLoading(false);
+      return undefined;
+    }
+    const rango = fechasDePreset('1s');
+    const t = setTimeout(() => cargarTablero(rango), 50);
+    return () => {
+      clearTimeout(t);
+      abortCargaRef.current?.abort();
+    };
   }, [accessToken]);
 
   function ordenarColumna(columna) {
@@ -813,6 +855,36 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       <div className="rp-page">
         <div className="rp-container">
           <div className="rp-filtros">
+            <fieldset className="rp-rango-presets">
+              <legend>Rango rápido</legend>
+              <div className="rp-rango-presets-list" role="radiogroup" aria-label="Rango de fechas">
+                {RANGOS_PRESET.map((item) => (
+                  <label
+                    key={item.id}
+                    className={`rp-rango-chip${rangoPreset === item.id ? ' rp-active' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="rango-gerencia"
+                      value={item.id}
+                      checked={rangoPreset === item.id}
+                      disabled={loading}
+                      onChange={() => {
+                        const rango = fechasDePreset(item.id);
+                        if (!rango) return;
+                        setRangoPreset(item.id);
+                        setFechaInicio(rango.inicio);
+                        setFechaFin(rango.fin);
+                        setFechaInicioTexto(isoToDmy(rango.inicio));
+                        setFechaFinTexto(isoToDmy(rango.fin));
+                        cargarTablero(rango);
+                      }}
+                    />
+                    {item.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="rp-campo">
               <label htmlFor="fechaInicio">Fecha inicio (día/mes/año)</label>
               <div className="rp-date-wrap">
@@ -825,6 +897,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   onChange={(e) => {
                     const texto = e.target.value;
                     setFechaInicioTexto(texto);
+                    setRangoPreset('');
                     const iso = dmyToIso(texto);
                     if (iso) setFechaInicio(iso);
                   }}
@@ -847,6 +920,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   value={fechaInicio}
                   onChange={(e) => {
                     const iso = e.target.value;
+                    setRangoPreset('');
                     setFechaInicio(iso);
                     setFechaInicioTexto(isoToDmy(iso));
                   }}
@@ -865,6 +939,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   onChange={(e) => {
                     const texto = e.target.value;
                     setFechaFinTexto(texto);
+                    setRangoPreset('');
                     const iso = dmyToIso(texto);
                     if (iso) setFechaFin(iso);
                   }}
@@ -887,6 +962,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   value={fechaFin}
                   onChange={(e) => {
                     const iso = e.target.value;
+                    setRangoPreset('');
                     setFechaFin(iso);
                     setFechaFinTexto(isoToDmy(iso));
                   }}
@@ -1130,6 +1206,17 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                     )}
                   </div>
                   )}
+                  <IndicadorVolumenVentas
+                    serie={serieVentas}
+                    loading={serieLoading}
+                    error={serieError}
+                    fechaInicio={fechaInicio}
+                    fechaFin={fechaFin}
+                    accessToken={accessToken}
+                    onSessionInvalid={onSessionInvalid}
+                    activo={tab === 'dashboard'}
+                    tableroCargando={loading}
+                  />
                 </div>
               </div>
             </>
