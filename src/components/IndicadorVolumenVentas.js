@@ -291,13 +291,6 @@ export default function IndicadorVolumenVentas({
     });
   }, [ventana, metrica, seleccion]);
 
-  const resumen = useMemo(() => {
-    const valores = lineas.length === 1
-      ? lineas[0].valores
-      : (ventana.dias || []).map((_, i) => lineas.reduce((acc, linea) => acc + (linea.valores[i] || 0), 0));
-    return { volumen: valores.reduce((acc, n) => acc + (n || 0), 0) };
-  }, [lineas, ventana]);
-
   useEffect(() => {
     if (!activo || !canvasRef.current || !ventana.dias?.length) {
       chartRef.current?.destroy();
@@ -397,7 +390,6 @@ export default function IndicadorVolumenVentas({
     });
   }
 
-  const etiquetaPeriodo = RANGOS.find((r) => r.id === rango)?.label || 'Máx';
   const seleccionNombres = seleccion
     .map((id) => (serie?.productos || []).find((p) => p.id === id)?.nombre)
     .filter(Boolean);
@@ -405,10 +397,6 @@ export default function IndicadorVolumenVentas({
   return (
     <div className="rp-chart-card rp-chart-card-wide rp-serie">
       <div className="rp-serie-head">
-        <div>
-          <div className="rp-serie-kicker">Volumen de ventas · {etiquetaPeriodo}</div>
-          <div className="rp-serie-value">{formatoValor(resumen.volumen, metrica)}</div>
-        </div>
         <div className="rp-serie-tools">
           <div className="rp-chart-toggle" role="group" aria-label="Métrica">
             <button

@@ -391,7 +391,6 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [rows, setRows] = useState(null);
-  const [tab, setTab] = useState('tabla');
   const [filtrosLista, setFiltrosLista] = useState({});
   const [filtroAbierto, setFiltroAbierto] = useState(null);
   const [busquedaFiltro, setBusquedaFiltro] = useState('');
@@ -528,7 +527,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
   useEffect(() => () => destruirGraficos(), []);
 
   useEffect(() => {
-    if (tab !== 'dashboard' || !rows?.length) {
+    if (!rows?.length) {
       destruirGraficos();
       return undefined;
     }
@@ -627,7 +626,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     }
 
     return () => destruirGraficos();
-  }, [tab, rows, topVentas, topCantidad, histograma]);
+  }, [rows, topVentas, topCantidad, histograma]);
 
   async function cargarTablero(rangoFechas) {
     abortCargaRef.current?.abort();
@@ -642,7 +641,6 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
     setFiltroAbierto(null);
     setBusquedaFiltro('');
     setOrden({ col: null, dir: 1 });
-    setTab('tabla');
     setSerieVentas(null);
     setSerieError('');
     setSerieLoading(false);
@@ -1001,32 +999,109 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                   <span className="rp-row-count">
                     {filasVisibles.length} de {rows.length} registros
                   </span>
-                  {tab !== 'dashboard' && (
-                    <button className="rp-export" type="button" onClick={exportarExcel}>
-                      Exportar Excel
-                    </button>
-                  )}
+                  <button className="rp-export" type="button" onClick={exportarExcel}>
+                    Exportar Excel
+                  </button>
                 </div>
               </div>
 
-              <div className="rp-tabs">
-                <button
-                  className={`rp-tab${tab === 'tabla' ? ' rp-active' : ''}`}
-                  type="button"
-                  onClick={() => setTab('tabla')}
-                >
-                  Tabla
-                </button>
-                <button
-                  className={`rp-tab${tab === 'dashboard' ? ' rp-active' : ''}`}
-                  type="button"
-                  onClick={() => setTab('dashboard')}
-                >
-                  Indicadores
-                </button>
+              <div className="rp-charts">
+                  <IndicadorVolumenVentas
+                    serie={serieVentas}
+                    loading={serieLoading}
+                    error={serieError}
+                    fechaInicio={fechaInicio}
+                    fechaFin={fechaFin}
+                    accessToken={accessToken}
+                    onSessionInvalid={onSessionInvalid}
+                    activo={!loading}
+                    tableroCargando={loading}
+                  />
               </div>
 
-              <div className={`rp-tab-panel${tab === 'tabla' ? ' rp-active' : ''}`}>
+              {kpis && (
+                  <div className="rp-kpi-grid">
+                    <div className="rp-kpi">
+                      <div className="rp-kpi-label">Compra</div>
+                      <div className="rp-kpi-caption">Costo total</div>
+                      <div className="rp-kpi-value">{formatoNumero(kpis.compraImp, 'costo_total_compra')}</div>
+                      <div className="rp-kpi-sub">Cantidad comprada  {formatoNumero(kpis.compraQty, 'cantidad_compra')}</div>
+                    </div>
+                    <div className="rp-kpi">
+                      <div className="rp-kpi-label">Venta</div>
+                      <div className="rp-kpi-caption">Importe vendido</div>
+                      <div className="rp-kpi-value">{formatoNumero(kpis.ventaImp, 'venta_total')}</div>
+                      <div className="rp-kpi-sub">Cantidad vendida  {formatoNumero(kpis.ventaQty, 'cantidad_venta')}</div>
+                    </div>
+                    <div className="rp-kpi">
+                      <div className="rp-kpi-label">Merma</div>
+                      <div className="rp-kpi-caption">Costo de merma - desecho</div>
+                      <div className="rp-kpi-value">{formatoNumero(kpis.mermaImp, 'costo_total_merma_desecho')}</div>
+                      <div className="rp-kpi-sub">Cantidad de merma  {formatoNumero(kpis.mermaQty, 'cantidad_merma_desecho')}</div>
+                    </div>
+                    <div className="rp-kpi">
+                      <div className="rp-kpi-label">Inventario</div>
+                      <div className="rp-kpi-caption">Valor en inventario a hoy</div>
+                      <div className="rp-kpi-value">{formatoNumero(kpis.invImp, 'valor_inventario')}</div>
+                      <div className="rp-kpi-sub">Existencia actual  {formatoNumero(kpis.existQty, 'existencia_actual')}</div>
+                    </div>
+                    <div className="rp-kpi">
+                      <div className="rp-kpi-label">Cantidad productos</div>
+                      <div className="rp-kpi-caption">Productos en el tablero</div>
+                      <div className="rp-kpi-value">{kpis.skus.toLocaleString('es-MX')}</div>
+                      <div className="rp-kpi-sub">Productos del período</div>
+                    </div>
+                  </div>
+                )}
+                <div className="rp-charts">
+                  <div className="rp-chart-card">
+                    <h3>Top productos por venta ($)</h3>
+                    <div className="rp-chart-scroll">
+                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topVentas.length) }}>
+                        <canvas ref={chartVentasRef} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rp-chart-card">
+                    <h3>Top productos por venta (cantidades)</h3>
+                    <div className="rp-chart-scroll">
+                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topCantidad.length) }}>
+                        <canvas ref={chartCantidadRef} />
+                      </div>
+                    </div>
+                  </div>
+                  {MOSTRAR_HISTOGRAMA && (
+                  <div className="rp-chart-card rp-chart-card-wide">
+                    <div className="rp-chart-card-head">
+                      <h3>
+                        Frecuencia de {histogramaCampo === 'margen_estimado' ? 'margen estimado' : 'margen bruto'}
+                      </h3>
+                      <div className="rp-chart-toggle" role="group" aria-label="Tipo de margen">
+                        <button
+                          type="button"
+                          className={histogramaCampo === 'margen_bruto' ? 'rp-active' : ''}
+                          onClick={() => setHistogramaCampo('margen_bruto')}
+                        >
+                          Margen bruto
+                        </button>
+                        <button
+                          type="button"
+                          className={histogramaCampo === 'margen_estimado' ? 'rp-active' : ''}
+                          onClick={() => setHistogramaCampo('margen_estimado')}
+                        >
+                          Margen estimado
+                        </button>
+                      </div>
+                    </div>
+                    {histograma.labels.length ? (
+                      <div className="rp-chart-wrap"><canvas ref={chartHistogramaRef} /></div>
+                    ) : (
+                      <div className="rp-empty">No hay datos de margen para graficar.</div>
+                    )}
+                  </div>
+                  )}
+                </div>
+
                 <div className="rp-table-container rp-table-sticky-name">
                   <table>
                     <thead>
@@ -1122,103 +1197,6 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
                     </tfoot>
                   </table>
                 </div>
-              </div>
-
-              <div className={`rp-tab-panel${tab === 'dashboard' ? ' rp-active' : ''}`}>
-                {kpis && (
-                  <div className="rp-kpi-grid">
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">Compra</div>
-                      <div className="rp-kpi-caption">Costo total</div>
-                      <div className="rp-kpi-value">{formatoNumero(kpis.compraImp, 'costo_total_compra')}</div>
-                      <div className="rp-kpi-sub">Cantidad comprada  {formatoNumero(kpis.compraQty, 'cantidad_compra')}</div>
-                    </div>
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">Venta</div>
-                      <div className="rp-kpi-caption">Importe vendido</div>
-                      <div className="rp-kpi-value">{formatoNumero(kpis.ventaImp, 'venta_total')}</div>
-                      <div className="rp-kpi-sub">Cantidad vendida  {formatoNumero(kpis.ventaQty, 'cantidad_venta')}</div>
-                    </div>
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">Merma</div>
-                      <div className="rp-kpi-caption">Costo de merma - desecho</div>
-                      <div className="rp-kpi-value">{formatoNumero(kpis.mermaImp, 'costo_total_merma_desecho')}</div>
-                      <div className="rp-kpi-sub">Cantidad de merma  {formatoNumero(kpis.mermaQty, 'cantidad_merma_desecho')}</div>
-                    </div>
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">Inventario</div>
-                      <div className="rp-kpi-caption">Valor en inventario a hoy</div>
-                      <div className="rp-kpi-value">{formatoNumero(kpis.invImp, 'valor_inventario')}</div>
-                      <div className="rp-kpi-sub">Existencia actual  {formatoNumero(kpis.existQty, 'existencia_actual')}</div>
-                    </div>
-                    <div className="rp-kpi">
-                      <div className="rp-kpi-label">Cantidad productos</div>
-                      <div className="rp-kpi-caption">Productos en el tablero</div>
-                      <div className="rp-kpi-value">{kpis.skus.toLocaleString('es-MX')}</div>
-                      <div className="rp-kpi-sub">Productos del período</div>
-                    </div>
-                  </div>
-                )}
-                <div className="rp-charts">
-                  <div className="rp-chart-card">
-                    <h3>Top productos por venta ($)</h3>
-                    <div className="rp-chart-scroll">
-                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topVentas.length) }}>
-                        <canvas ref={chartVentasRef} />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rp-chart-card">
-                    <h3>Top productos por venta (cantidades)</h3>
-                    <div className="rp-chart-scroll">
-                      <div className="rp-chart-scroll-inner" style={{ height: alturaGrafica(topCantidad.length) }}>
-                        <canvas ref={chartCantidadRef} />
-                      </div>
-                    </div>
-                  </div>
-                  {MOSTRAR_HISTOGRAMA && (
-                  <div className="rp-chart-card rp-chart-card-wide">
-                    <div className="rp-chart-card-head">
-                      <h3>
-                        Frecuencia de {histogramaCampo === 'margen_estimado' ? 'margen estimado' : 'margen bruto'}
-                      </h3>
-                      <div className="rp-chart-toggle" role="group" aria-label="Tipo de margen">
-                        <button
-                          type="button"
-                          className={histogramaCampo === 'margen_bruto' ? 'rp-active' : ''}
-                          onClick={() => setHistogramaCampo('margen_bruto')}
-                        >
-                          Margen bruto
-                        </button>
-                        <button
-                          type="button"
-                          className={histogramaCampo === 'margen_estimado' ? 'rp-active' : ''}
-                          onClick={() => setHistogramaCampo('margen_estimado')}
-                        >
-                          Margen estimado
-                        </button>
-                      </div>
-                    </div>
-                    {histograma.labels.length ? (
-                      <div className="rp-chart-wrap"><canvas ref={chartHistogramaRef} /></div>
-                    ) : (
-                      <div className="rp-empty">No hay datos de margen para graficar.</div>
-                    )}
-                  </div>
-                  )}
-                  <IndicadorVolumenVentas
-                    serie={serieVentas}
-                    loading={serieLoading}
-                    error={serieError}
-                    fechaInicio={fechaInicio}
-                    fechaFin={fechaFin}
-                    accessToken={accessToken}
-                    onSessionInvalid={onSessionInvalid}
-                    activo={tab === 'dashboard'}
-                    tableroCargando={loading}
-                  />
-                </div>
-              </div>
             </>
           )}
         </div>
