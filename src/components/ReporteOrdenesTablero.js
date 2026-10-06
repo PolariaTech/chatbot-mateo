@@ -6,24 +6,28 @@ import * as XLSX from 'xlsx';
 
 const COLUMNAS_ORDEN = [
   ['numero_orden', 'Número'],
-  ['fecha', 'Fecha'],
-  ['estado', 'Estado'],
+  ['fecha_llegada', 'Llegada'],
+  ['fecha_pedido', 'Pedido'],
+  ['comprador', 'Comprador'],
+  ['orden_compra', 'Orden de compra'],
   ['cantidad', 'Cantidad'],
-  ['venta_total', 'Venta'],
+  ['venta_total', 'Importe'],
 ];
 
 const COLUMNAS_DETALLE = [
   ['numero_orden', 'Número'],
-  ['fecha', 'Fecha'],
-  ['nombre_producto', 'Producto'],
+  ['fecha_llegada', 'Llegada'],
+  ['producto', 'Producto'],
   ['cantidad', 'Cantidad'],
-  ['precio_unitario', 'Precio'],
-  ['venta_total', 'Venta'],
+  ['unidad', 'Unidad'],
+  ['precio', 'Precio'],
+  ['venta_total', 'Importe'],
+  ['almacen', 'Almacén'],
 ];
 
 const DINERO = {
   venta_total: true,
-  precio_unitario: true,
+  precio: true,
 };
 
 function esFechaIso(valor) {
@@ -128,7 +132,7 @@ function formatoCantidad(valor) {
 
 function formatoCelda(valor, columna) {
   if (valor == null || valor === '') return '';
-  if (columna === 'fecha') return isoToDmy(diaIso(valor)) || String(valor);
+  if (columna === 'fecha_llegada' || columna === 'fecha_pedido') return isoToDmy(diaIso(valor)) || String(valor);
   if (DINERO[columna]) return formatoDinero(valor);
   if (columna === 'cantidad') return formatoCantidad(valor);
   return String(valor);
@@ -149,7 +153,7 @@ function serieDesdeOrdenes(ordenes, inicio, fin) {
   const dias = enumerarDias(inicio, fin);
   const mapa = new Map(dias.map((dia) => [dia, 0]));
   (ordenes || []).forEach((row) => {
-    const dia = diaIso(row.fecha);
+    const dia = diaIso(row.fecha_llegada);
     if (!mapa.has(dia)) return;
     mapa.set(dia, mapa.get(dia) + (aNumero(row.venta_total) || 0));
   });
@@ -208,7 +212,7 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
       data: {
         labels: serie.map((punto) => isoToDmy(punto.fecha)),
         datasets: [{
-          label: 'Venta',
+          label: 'Importe',
           data: serie.map((punto) => punto.venta),
           backgroundColor: 'rgba(46, 230, 168, 0.75)',
         }],
@@ -302,22 +306,26 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
     const libro = XLSX.utils.book_new();
     const hojaOrdenes = (ordenes || []).map((row) => ({
       Número: row.numero_orden,
-      Fecha: isoToDmy(diaIso(row.fecha)),
-      Estado: row.estado,
+      Llegada: isoToDmy(diaIso(row.fecha_llegada)),
+      Pedido: isoToDmy(diaIso(row.fecha_pedido)),
+      Comprador: row.comprador,
+      'Orden de compra': row.orden_compra,
       Cantidad: aNumero(row.cantidad) || 0,
-      Venta: aNumero(row.venta_total) || 0,
+      Importe: aNumero(row.venta_total) || 0,
     }));
     const hojaDetalle = (detalle || []).map((row) => ({
       Número: row.numero_orden,
-      Fecha: isoToDmy(diaIso(row.fecha)),
-      Producto: row.nombre_producto,
+      Llegada: isoToDmy(diaIso(row.fecha_llegada)),
+      Producto: row.producto,
       Cantidad: aNumero(row.cantidad) || 0,
-      Precio: aNumero(row.precio_unitario) || 0,
-      Venta: aNumero(row.venta_total) || 0,
+      Unidad: row.unidad,
+      Precio: aNumero(row.precio) || 0,
+      Importe: aNumero(row.venta_total) || 0,
+      Almacén: row.almacen,
     }));
     XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(hojaOrdenes), 'Ordenes');
     XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(hojaDetalle), 'Detalle');
-    XLSX.writeFile(libro, `ordenes_venta_${fechaInicio}_${fechaFin}.xlsx`);
+    XLSX.writeFile(libro, `ordenes_${fechaInicio}_${fechaFin}.xlsx`);
   }
 
   return (
@@ -383,17 +391,17 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
           {ordenes && ordenes.length === 0 && (
             <>
               <div className="rp-result-header">
-                <h2>Órdenes de venta</h2>
+                <h2>Órdenes</h2>
                 <span className="rp-row-count">0 órdenes</span>
               </div>
-              <div className="rp-empty">No hay órdenes de venta en ese rango.</div>
+              <div className="rp-empty">No hay órdenes en ese rango.</div>
             </>
           )}
 
           {ordenes && ordenes.length > 0 && (
             <>
               <div className="rp-result-header">
-                <h2>Órdenes de venta</h2>
+                <h2>Órdenes</h2>
                 <div className="rp-result-actions">
                   <span className="rp-row-count">{ordenes.length} órdenes</span>
                   <button className="rp-export" type="button" onClick={exportarExcel}>
@@ -450,7 +458,7 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
                 <Tabla
                   columnas={COLUMNAS_DETALLE}
                   filas={detalleVisible}
-                  rowKey={(row, index) => `${row.numero_orden}-${row.nombre_producto}-${index}`}
+                  rowKey={(row, index) => `${row.numero_orden}-${row.producto}-${index}`}
                 />
               </div>
 
@@ -458,7 +466,7 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
                 {kpis && (
                   <div className="rp-kpi-grid">
                     <div className="rp-kpi">
-                      <div className="rp-kpi-label">Venta</div>
+                      <div className="rp-kpi-label">Importe</div>
                       <div className="rp-kpi-caption">Importe del rango</div>
                       <div className="rp-kpi-value">{formatoDinero(kpis.venta)}</div>
                       <div className="rp-kpi-sub">Cantidad {formatoCantidad(kpis.cantidad)}</div>
@@ -473,7 +481,7 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
                 )}
                 <div className="rp-charts">
                   <div className="rp-chart-card">
-                    <h3>Venta por día</h3>
+                    <h3>Importe por día</h3>
                     <div className="rp-chart-wrap"><canvas ref={chartRef} /></div>
                   </div>
                 </div>

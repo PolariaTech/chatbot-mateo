@@ -102,10 +102,10 @@ export async function consultarTableroRpc({ schema, fechaInicio, fechaFin }) {
   return normalizarFilasRpc(filas);
 }
 
-export async function consultarOrdenesVenta({ schema, fechaInicio, fechaFin }) {
+export async function consultarOrdenes({ schema, fechaInicio, fechaFin }) {
   return consultarRpcFechas({
     schema,
-    rpcName: 'get_ordenes_venta',
+    rpcName: 'get_borradores',
     fechaInicio,
     fechaFin,
   });
@@ -114,7 +114,7 @@ export async function consultarOrdenesVenta({ schema, fechaInicio, fechaFin }) {
 export async function consultarDetalleOrdenes({ schema, fechaInicio, fechaFin }) {
   return consultarRpcFechas({
     schema,
-    rpcName: 'get_detalle_ordenes',
+    rpcName: 'get_detalle_borradores',
     fechaInicio,
     fechaFin,
   });

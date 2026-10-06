@@ -4,18 +4,13 @@ import { isSupabaseConfigured } from '../../../../lib/supabase-server';
 import { resolveReportesSchema } from '../../../../lib/reportes-schema';
 import {
   consultarDetalleOrdenes,
-  consultarOrdenesVenta,
+  consultarOrdenes,
   mensajeTimeoutConsulta,
 } from '../../../../lib/reportes-tablero';
 
 export const maxDuration = 60;
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
-
-function esVentaContable(estado) {
-  const valor = String(estado || '').trim().toLowerCase();
-  return valor !== 'cancelada' && valor !== 'borrador';
-}
 
 export async function POST(request) {
   if (!isSupabaseConfigured()) {
@@ -57,20 +52,18 @@ export async function POST(request) {
   const schema = resolveReportesSchema(auth.user.codigoEmpresa);
 
   try {
-    const ordenes = await consultarOrdenesVenta({ schema, fechaInicio, fechaFin });
+    const ordenes = await consultarOrdenes({ schema, fechaInicio, fechaFin });
     let detalle = [];
     try {
       detalle = await consultarDetalleOrdenes({ schema, fechaInicio, fechaFin });
     } catch {
       detalle = [];
     }
-    const ordenesVenta = (ordenes || []).filter((row) => esVentaContable(row.estado));
-    const detalleVenta = (detalle || []).filter((row) => esVentaContable(row.estado));
     return NextResponse.json({
       success: true,
       schema,
-      ordenes: ordenesVenta,
-      detalle: detalleVenta,
+      ordenes: ordenes || [],
+      detalle: detalle || [],
     });
   } catch (error) {
     return NextResponse.json(
