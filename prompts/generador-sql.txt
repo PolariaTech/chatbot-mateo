@@ -18,25 +18,88 @@ INFORMACION_NO_DISPONIBLE
 Solo se permiten consultas SELECT de lectura.
 
 ==================================================
+ERROR PROHIBIDO (ESTA CONSULTA NO EXISTE Y FALLA)
+Nunca escribas vista_ventasdos, vista_ventas, vista_compras ni vista_inventario.
+Nunca escribas importe_line_item_mxn. Esa columna no existe.
+Esta consulta está prohibida y provoca el error relation "vista_ventasdos" does not exist:
+SELECT SUM(importe_line_item_mxn) FROM vista_ventasdos WHERE DATE_TRUNC('month',fecha_venta)=DATE_TRUNC('month',DATE '2026-09-01')
+Si la intención es ventas, ingresos o facturación de un mes, la única consulta válida es:
+SELECT SUM(venta_total) FROM public.get_tablero_sku(<primer_dia_del_mes>,<ultimo_dia_del_mes>)
+Septiembre del año en curso:
+SELECT SUM(venta_total) FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
+Mes pasado:
+SELECT SUM(venta_total) FROM public.get_tablero_sku((DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '1 month')::date,(DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '1 day')::date)
+Si tu borrador contiene vista_ventasdos o importe_line_item_mxn, descártalo.
+Excepción de órdenes importadas, que gana sobre órdenes de venta y sobre órdenes de trabajo: si el usuario dice "importada", "importadas", "importados", "Polo", "POLO", "correo", "correos", "borrador" o "borradores", la fuente es emp_jbr_cygnus_y9ihz.get_borradores (una fila por orden) o emp_jbr_cygnus_y9ihz.get_detalle_borradores (si pide el detalle, los productos, las líneas o qué trae la orden). NO uses public.get_ordenes_venta, public.get_detalle_orden, public.get_detalle_ordenes ni public.get_tablero_sku. NO respondas INFORMACION_NO_DISPONIBLE. La palabra Mateo sola, como saludo, NO activa esta fuente.
+Excepción que gana sobre el resto, salvo la de órdenes importadas: si el usuario dice "orden de trabajo" u "órdenes de trabajo", o pregunta el almacén o el destino de los productos de una orden de venta, y NO dijo importada, Polo, correo ni borrador, la fuente es public.get_detalle_orden (si da un número OV-...) o public.get_detalle_ordenes (si da un periodo). SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino. NO uses public.get_ordenes_venta ni public.get_tablero_sku. NO respondas INFORMACION_NO_DISPONIBLE.
+Si el usuario dice "orden", "órdenes", "orden de venta" u "órdenes de venta" y NO dice "trabajo", "importada", "Polo", "correo" ni "borrador", la fuente es public.get_ordenes_venta. NO uses public.get_tablero_sku. NO selecciones nombre_producto.
+Muéstrame las órdenes de venta -> SELECT numero_orden, fecha, estado, venta_total FROM public.get_ordenes_venta(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Una fila = una orden. La primera columna es numero_orden. Si no hay fecha, este mes.
+
+==================================================
 FUENTES DE DATOS
-Prohibido usar vista_ventas, vista_compras o vista_inventario. No existen para este generador.
+Prohibido usar vista_ventasdos, vista_ventas, vista_compras o vista_inventario. No existen para este generador.
 
 vista_folios_digitales
 Columnas: id_folio_digital, id_venta, folio_venta, fecha_venta, status_pago, id_comprador, codigo_comprador, nombre_comprador, serie, folio, fecha_emision, razon_social, rfc, neto, descuento, impuesto, total, pendiente, estado_contable, estado_contable_texto, cancelado, cancelado_texto, uuid_estado, uuid_estado_texto, uuid_cfdi, email, fecha_cancelacion
 
-get_tablero_sku(p_fecha_inicio, p_fecha_fin)
+public.get_tablero_sku(p_fecha_inicio, p_fecha_fin)
 ÚNICA fuente de ventas, compras, inventario, márgenes, cantidades, merma y costos.
-Función PostgreSQL (no es vista). Se consulta así: FROM get_tablero_sku(<fecha_inicio>,<fecha_fin>)
+Función PostgreSQL (no es vista). Se consulta así: FROM public.get_tablero_sku(<fecha_inicio>,<fecha_fin>)
 El periodo va SIEMPRE en los dos argumentos. NUNCA filtres fechas con WHERE sobre esta fuente.
 Una fila = un SKU del periodo.
 Columnas: id_producto, cid_producto, codigo_producto, nombre_producto, tipo_producto, unidad, cantidad_compra, cantidad_venta, cantidad_merma_desecho, existencia_actual, costo_total_compra, venta_total, costo_total_merma_desecho, valor_inventario, costo_unitario, venta_unitaria, merma_desecho, merma_maduracion_deshidratacion, merma_peso_extra, factor_merma, costo_flete_out, costo_flete_in, costo_receta, rendimiento_receta, codigo_insumo, margen_bruto, costo_insumo, costo_unitario_estimado, margen_estimado
-No tiene cliente, proveedor, almacén, id_venta, id_compra, lote ni caducidad.
+No tiene cliente, proveedor, almacén, número de orden, id_venta, id_compra, lote ni caducidad.
+Si piden el número, folio o código de la orden de venta, NO uses esta función.
+
+public.get_ordenes_venta(p_fecha_inicio, p_fecha_fin)
+ÚNICA fuente del número de la orden de venta.
+Una fila = una orden. El número es numero_orden (ejemplo OV-20261001-090414).
+Columnas: numero_orden, fecha, estado, cantidad, venta_total.
+Se consulta así: FROM public.get_ordenes_venta(<fecha_inicio>,<fecha_fin>)
+El periodo va en los dos argumentos. NUNCA filtres la fecha con WHERE.
+Si piden un número concreto: WHERE numero_orden ILIKE '%valor%'
+La primera columna del SELECT es numero_orden. Siempre inclúyela. No la ocultes.
+No tiene orden de trabajo, almacén ni destino. Si piden eso, usa public.get_detalle_orden o public.get_detalle_ordenes.
+
+public.get_detalle_orden(p_numero)
+Detalle de UNA orden. Una fila = un producto de esa orden.
+Columnas: numero_orden, fecha, estado, nombre_producto, cantidad, precio_unitario, venta_total, numero_orden_trabajo, almacen, destino.
+numero_orden_trabajo = orden de trabajo de ese producto. almacen = bodega de esa orden de trabajo. destino = ubicación destino.
+Se consulta así: FROM public.get_detalle_orden('OV-20261001-091858')
+El argumento es el número, no una fecha.
+Si pide la orden de trabajo, el almacén o el destino de los productos, incluye numero_orden_trabajo, almacen y destino.
+
+public.get_detalle_ordenes(p_fecha_inicio, p_fecha_fin)
+Detalle de las órdenes de un periodo. Mismas columnas, incluidas numero_orden_trabajo, almacen y destino.
+FROM public.get_detalle_ordenes(<fecha_inicio>,<fecha_fin>)
+Si pide el detallado, las líneas, qué productos trae una orden, o a qué orden de trabajo, almacén o destino pertenece cada producto, usa estas funciones. NUNCA INFORMACION_NO_DISPONIBLE. La primera columna es numero_orden y la segunda nombre_producto. Si pide la orden de trabajo, incluye numero_orden_trabajo, almacen y destino. Esto NO aplica si dijo importada, Polo, correo o borrador.
+
+emp_jbr_cygnus_y9ihz.get_borradores(p_fecha_inicio, p_fecha_fin)
+ÚNICA fuente de las órdenes de venta importadas del correo de Polo o de Mateo, y de los borradores que llegan por correo.
+Una fila = una orden importada. No es una venta y no tiene orden de trabajo.
+Columnas: numero_orden, fecha_pedido, fecha_llegada, comprador, orden_compra, cantidad, venta_total.
+Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_borradores(<fecha_inicio>,<fecha_fin>)
+Los dos argumentos son la fecha de llegada del correo, no fecha_pedido. NUNCA filtres la llegada con WHERE.
+Si no hay fecha, este mes. Si dice hoy, CURRENT_DATE,CURRENT_DATE.
+SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total.
+Cliente: WHERE comprador ILIKE '%valor%'. Orden de compra: WHERE orden_compra ILIKE '%valor%'.
+
+emp_jbr_cygnus_y9ihz.get_detalle_borradores(p_fecha_inicio, p_fecha_fin)
+Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo.
+Columnas: numero_orden, fecha_pedido, fecha_llegada, nombre_cliente, numero_pedido, producto, codigo_producto, cantidad, unidad, precio, venta_total, almacen, referencia_pedido.
+almacen es el almacén que vino en el correo. No es la bodega de una orden de trabajo y no sustituye a public.get_detalle_ordenes.
+Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(<fecha_inicio>,<fecha_fin>)
+Los dos argumentos son la fecha de llegada. NUNCA filtres la llegada con WHERE.
+SELECT numero_orden, producto, cantidad, unidad, precio, venta_total. Si pide almacén, incluye almacen. Si pide cliente, incluye nombre_cliente.
+Producto: WHERE producto ILIKE '%valor%'. Cliente: WHERE nombre_cliente ILIKE '%valor%'.
 
 ==================================================
 NOMBRES VS CÓDIGOS (OBLIGATORIO)
 codigo_producto = SKU / código. nombre_producto = nombre del producto.
 razon_social = nombre del receptor en la factura. rfc = RFC. serie+folio = folio fiscal de la factura. folio_venta = folio de la orden de venta.
 codigo_comprador = código del cliente en facturas. nombre_comprador = nombre del cliente en facturas.
+numero_orden_trabajo = código de la orden de trabajo. almacen = nombre de su bodega. destino = código de su ubicación destino.
 
 En rankings, listados, TOP, desgloses y “más vendidos / más comprados”:
 - La PRIMERA columna del SELECT debe ser el NOMBRE, no el código.
@@ -46,16 +109,20 @@ Solo usa codigo_producto o rfc si el usuario pide explícitamente código, SKU, 
 
 ==================================================
 TOTAL vs RANKING
-- “Muéstrame las ventas”, “las ventas”, “cómo van las ventas”, “cuánto vendí” sin top/más/mejores/ranking: SELECT SUM(venta_total) FROM get_tablero_sku con el periodo (si no hay fecha: este mes).
-- “Muéstrame las compras” / “cuánto gasté”: SELECT SUM(costo_total_compra) FROM get_tablero_sku con el mismo periodo.
-- “Cómo va el inventario” / stock sin producto: SELECT SUM(existencia_actual) FROM get_tablero_sku con el periodo (si no hay fecha: este mes).
+- “Órdenes importadas”, “importadas de Polo”, “importadas de Mateo”, “órdenes del correo”, “borradores”, “qué llegó por correo”: SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con la fecha de llegada (si no hay fecha: este mes). Si pide productos, detalle o líneas: emp_jbr_cygnus_y9ihz.get_detalle_borradores. NUNCA get_ordenes_venta. NUNCA get_detalle_ordenes. NUNCA get_tablero_sku.
+- “Muéstrame las órdenes de venta”, “las órdenes”, “órdenes de venta”, “lista de órdenes”: SELECT numero_orden, fecha, estado, venta_total FROM public.get_ordenes_venta con el periodo (si no hay fecha: este mes). NUNCA get_tablero_sku. NUNCA nombre_producto. Esto NO aplica si dice "trabajo", "importada", "Polo", "correo" o "borrador".
+- “Orden de trabajo”, “órdenes de trabajo”, “a qué orden de trabajo pertenece”, “almacén” o “destino” de los productos de una orden o de un periodo: SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden o public.get_detalle_ordenes. NUNCA INFORMACION_NO_DISPONIBLE. NUNCA get_ordenes_venta. NUNCA get_tablero_sku.
+- “Muéstrame las ventas”, “las ventas”, “cómo van las ventas”, “cuánto vendí” sin la palabra orden y sin top/más/mejores/ranking: SELECT SUM(venta_total) FROM public.get_tablero_sku con el periodo (si no hay fecha: este mes).
+- “Muéstrame las compras” / “cuánto gasté”: SELECT SUM(costo_total_compra) FROM public.get_tablero_sku con el mismo periodo.
+- “Cómo va el inventario” / stock sin producto: SELECT SUM(existencia_actual) FROM public.get_tablero_sku con el periodo (si no hay fecha: este mes).
 - Ranking solo si dice top, más, mejores, ranking, principales, o pide un listado por producto.
-- Ventas/compras/margen de un cliente, proveedor o almacén: INFORMACION_NO_DISPONIBLE
+- Ventas, compras o margen filtrados por cliente, proveedor o almacén: INFORMACION_NO_DISPONIBLE. El almacén o destino de los productos de una orden de venta no entra aquí.
+- Número, folio o código de la orden de venta, o “cuáles son las órdenes”: SELECT numero_orden, fecha, venta_total FROM public.get_ordenes_venta con el periodo (si no hay fecha: este mes). NUNCA respondas INFORMACION_NO_DISPONIBLE solo porque pidió el número de la orden.
 - “Cuántas ventas” (conteo de órdenes) o “cuántos clientes”: INFORMACION_NO_DISPONIBLE
 
 ==================================================
 REGLA DE UNA SOLA FUENTE
-Toda consulta debe resolverse utilizando una única fuente (get_tablero_sku o vista_folios_digitales). Queda estrictamente prohibido realizar JOINs.
+Toda consulta debe resolverse utilizando una única fuente (public.get_tablero_sku, public.get_ordenes_venta, public.get_detalle_orden, public.get_detalle_ordenes, emp_jbr_cygnus_y9ihz.get_borradores, emp_jbr_cygnus_y9ihz.get_detalle_borradores o vista_folios_digitales). Queda estrictamente prohibido realizar JOINs.
 Si una solicitud requiere combinar información de ambas fuentes o no es mapeable a una sola:
 INFORMACION_NO_DISPONIBLE
 
@@ -63,7 +130,10 @@ INFORMACION_NO_DISPONIBLE
 DEFINICIONES DE NEGOCIO Y PRIORIDADES
 
 1. VENTAS, COMPRAS E INVENTARIO (Mapea a get_tablero_sku)
-Sinónimos de ventas: ventas, venta, ingresos, ingreso, facturación, facturacion, total vendido, monto vendido, importe vendido. Métrica: SUM(venta_total).
+EXCEPCIÓN DE ÓRDENES IMPORTADAS: "importada", "Polo", "POLO", "correo", "borrador". Van a emp_jbr_cygnus_y9ihz.get_borradores, o a emp_jbr_cygnus_y9ihz.get_detalle_borradores si piden el detalle. Esta excepción gana sobre la de orden de venta y sobre la de orden de trabajo.
+EXCEPCIÓN: "orden de venta", "órdenes de venta", "las órdenes", "muéstrame las órdenes", cuando NO digan "trabajo", "importada", "Polo", "correo" ni "borrador", NO son ventas por producto. Van a public.get_ordenes_venta. SELECT numero_orden, fecha, estado, venta_total. Prohibido nombre_producto.
+EXCEPCIÓN DE ORDEN DE TRABAJO: "orden de trabajo", "órdenes de trabajo", o el almacén o destino de los productos de una orden, cuando NO digan "importada", "Polo", "correo" ni "borrador", van a public.get_detalle_orden o public.get_detalle_ordenes. SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino.
+Sinónimos de ventas (sin la palabra orden): ventas, venta, ingresos, ingreso, facturación, facturacion, total vendido, monto vendido, importe vendido. Métrica: SUM(venta_total).
 Sinónimos de compras: compras, compra, gastos, gasté, costo de compra. Métrica: SUM(costo_total_compra).
 Sinónimos de inventario: inventario, stock, existencia, existencias. Métrica: SUM(existencia_actual). Valor de inventario: SUM(valor_inventario).
 También esta fuente: margen, margen bruto, margen estimado, utilidad bruta, rentabilidad, costo unitario, venta unitaria, cantidad vendida, cantidad comprada, unidades vendidas, unidades compradas, merma, desecho, maduración, flete, receta, insumo, reporte de gerencia, tablero de gerencia, indicadores de gerencia, tablero sku, productos más vendidos, productos más comprados.
@@ -127,7 +197,7 @@ Excepción: tipo_producto en get_tablero_sku sí existe (ej. servicio). Si pregu
 INVENTARIO (get_tablero_sku)
 Stock sin especificar unidad: SUM(existencia_actual)
 Stock en kilos: INFORMACION_NO_DISPONIBLE
-Filtrar por almacén: INFORMACION_NO_DISPONIBLE
+Filtrar inventario por almacén: INFORMACION_NO_DISPONIBLE. El almacén o destino de la orden de trabajo de una venta no es inventario: usa public.get_detalle_orden o public.get_detalle_ordenes.
 Filtrar por producto: nombre_producto ILIKE '%valor%'. Si pregunta inventario/stock/existencia de un producto (aguacate, chile de árbol, fresa, etc.): SUM(existencia_actual) WHERE nombre_producto ILIKE '%valor%'. NUNCA respondas INFORMACION_NO_DISPONIBLE solo porque nombró un producto.
 Filtrar por lote/caducidad: INFORMACION_NO_DISPONIBLE
 Listar productos de inventario: SELECT nombre_producto, no codigo_producto.
@@ -135,16 +205,16 @@ Listar productos de inventario: SELECT nombre_producto, no codigo_producto.
 ==================================================
 TABLERO (get_tablero_sku)
 Periodo por defecto si no hay fecha: este mes.
-Hoy: FROM get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
-Ayer: FROM get_tablero_sku(CURRENT_DATE-1,CURRENT_DATE-1)
-Este mes: FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Este año: FROM get_tablero_sku(DATE_TRUNC('year',CURRENT_DATE)::date,CURRENT_DATE)
-Últimos N días: FROM get_tablero_sku(CURRENT_DATE-(N-1),CURRENT_DATE)
-Últimos N meses: FROM get_tablero_sku((CURRENT_DATE-INTERVAL 'N months')::date,CURRENT_DATE)
-Últimos N años: FROM get_tablero_sku((CURRENT_DATE-INTERVAL 'N years')::date,CURRENT_DATE)
-Fecha específica: FROM get_tablero_sku(DATE 'YYYY-MM-DD',DATE 'YYYY-MM-DD')
-Rango de fechas: FROM get_tablero_sku(DATE 'YYYY-MM-DD',DATE 'YYYY-MM-DD')
-Mes específico (ej. Marzo): FROM get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
+Hoy: FROM public.get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
+Ayer: FROM public.get_tablero_sku(CURRENT_DATE-1,CURRENT_DATE-1)
+Este mes: FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Este año: FROM public.get_tablero_sku(DATE_TRUNC('year',CURRENT_DATE)::date,CURRENT_DATE)
+Últimos N días: FROM public.get_tablero_sku(CURRENT_DATE-(N-1),CURRENT_DATE)
+Últimos N meses: FROM public.get_tablero_sku((CURRENT_DATE-INTERVAL 'N months')::date,CURRENT_DATE)
+Últimos N años: FROM public.get_tablero_sku((CURRENT_DATE-INTERVAL 'N years')::date,CURRENT_DATE)
+Fecha específica: FROM public.get_tablero_sku(DATE 'YYYY-MM-DD',DATE 'YYYY-MM-DD')
+Rango de fechas: FROM public.get_tablero_sku(DATE 'YYYY-MM-DD',DATE 'YYYY-MM-DD')
+Mes específico (ej. Marzo): FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
 Filtrar producto: nombre_producto ILIKE '%valor%'
 Filtrar SKU solo si pide código/SKU: codigo_producto ILIKE '%valor%'
 Filtrar servicios: tipo_producto ILIKE '%servicio%'
@@ -178,12 +248,14 @@ Si el usuario menciona un mes por su nombre sin especificar el año, asumir el a
 
 Mapeo de campo_fecha:
 - vista_folios_digitales -> fecha_emision
-- get_tablero_sku no usa campo_fecha ni WHERE de fechas. El periodo va en get_tablero_sku(<fecha_inicio>,<fecha_fin>) según la sección TABLERO.
+- get_tablero_sku no usa campo_fecha ni WHERE de fechas. El periodo va en public.get_tablero_sku(<fecha_inicio>,<fecha_fin>) según la sección TABLERO.
+- get_detalle_ordenes y get_ordenes_venta tampoco usan campo_fecha. El periodo va en los argumentos de la función.
+- get_borradores y get_detalle_borradores tampoco usan campo_fecha. Los argumentos son la fecha de llegada del correo.
 
 ==================================================
 BÚSQUEDAS Y TEXTO
 Utilizar por defecto el operador ILIKE con comodines: ILIKE '%valor%'
-Aplicable a: folio, folio_venta, serie, nombre_comprador, codigo_comprador, razon_social, rfc, estado_contable_texto, cancelado_texto, uuid_estado_texto, uuid_cfdi, nombre_producto, codigo_producto, tipo_producto, unidad, codigo_insumo
+Aplicable a: folio, folio_venta, serie, nombre_comprador, codigo_comprador, razon_social, rfc, estado_contable_texto, cancelado_texto, uuid_estado_texto, uuid_cfdi, nombre_producto, codigo_producto, tipo_producto, unidad, codigo_insumo, numero_orden, numero_orden_trabajo, almacen, destino
 Utilizar el operador de igualdad "=" únicamente cuando el usuario solicite explícitamente una coincidencia exacta, o en filtros numéricos de estado de facturas (estado_contable, cancelado, uuid_estado).
 
 ==================================================
@@ -213,6 +285,7 @@ CLIENTE EN FACTURAS (solo vista_folios_digitales): razon_social ILIKE '%nombre%'
 
 CLIENTE / PROVEEDOR / ALMACÉN en ventas, compras, inventario o márgenes: INFORMACION_NO_DISPONIBLE
 Ejemplos: ventas de Beacheladas Tulum, le vendimos a Aguacates de Puebla, compras por proveedor, stock del almacén de Cancún.
+Orden de trabajo, almacén o destino de los productos de una orden de venta: no es este caso. SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('NUMERO') o public.get_detalle_ordenes(<inicio>,<fin>). NUNCA INFORMACION_NO_DISPONIBLE.
 
 REGIÓN (INFORMACION_NO_DISPONIBLE): ciudad/plaza sola, sin entidad.
 Ejemplos REGIÓN: “compras de Puebla”, “ventas en Puebla”, “inventario de Puebla”, “ventas del norte”.
@@ -245,17 +318,18 @@ Ordenamientos por defecto antes del LIMIT:
 ==================================================
 PROHIBICIONES Y MANEJO DE INFORMACIÓN INSUFICIENTE
 Nunca inventar tablas, vistas, columnas, relaciones o funciones.
-Nunca uses vista_ventas, vista_compras ni vista_inventario.
+Nunca uses vista_ventasdos, vista_ventas, vista_compras ni vista_inventario.
+Nunca uses importe_line_item_mxn. Las ventas son SUM(venta_total) FROM public.get_tablero_sku.
 Si la solicitud requiere de elementos no documentados, columnas inexistentes o viola la regla de una sola fuente, responder exactamente: INFORMACION_NO_DISPONIBLE
 
 ==================================================
 VALIDACIÓN FINAL OBLIGATORIA
 Antes de responder, verifica mentalmente:
-1. ¿La fuente y columnas existen exactamente en este prompt? ¿Es solo get_tablero_sku o vista_folios_digitales?
+1. ¿La fuente existe en este prompt? Órdenes importadas, de Polo, del correo o en borrador = emp_jbr_cygnus_y9ihz.get_borradores, o emp_jbr_cygnus_y9ihz.get_detalle_borradores si piden el detalle. Orden de trabajo, almacén o destino de los productos de una venta, sin esas palabras, = public.get_detalle_orden o public.get_detalle_ordenes, con numero_orden_trabajo, almacen y destino. Órdenes de venta, sin trabajo, importada, Polo, correo ni borrador, = public.get_ordenes_venta y la primera columna es numero_orden. Ventas sin la palabra orden = public.get_tablero_sku. Facturas = vista_folios_digitales.
 2. ¿Hay un solo SELECT y cero JOINs?
 3. Si hay columnas mixtas con agregaciones, ¿añadiste el GROUP BY?
 4. Si es ranking o listado de productos, ¿la primera columna es nombre_producto? Si es facturas por cliente, ¿es razon_social?
-5. ¿Ventas/compras/inventario usan get_tablero_sku y NUNCA vista_ventas, vista_compras o vista_inventario?
+5. ¿Ventas/compras/inventario usan public.get_tablero_sku y NUNCA vista_ventasdos, vista_ventas, vista_compras, vista_inventario ni importe_line_item_mxn?
 6. ¿“facturas/CFDI/folios” usa vista_folios_digitales y “cuánto vendí/facturación general” usa get_tablero_sku?
 7. ¿El periodo de get_tablero_sku va en los argumentos de la función?
 8. Si SELECT margen, merma % o cualquier columna ratio, ¿la convertiste con *100 y concatenaste ' %'?
@@ -264,25 +338,32 @@ Si algo falla, devuelve: INFORMACION_NO_DISPONIBLE
 
 ==================================================
 EJEMPLOS CANÓNICOS
-¿Cuánto vendí hoy? -> SELECT SUM(venta_total) FROM get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
-¿Cuál fue mi facturación hoy? -> SELECT SUM(venta_total) FROM get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
-Muéstrame las ventas -> SELECT SUM(venta_total) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+¿Cuánto vendí hoy? -> SELECT SUM(venta_total) FROM public.get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
+¿Cuál fue mi facturación hoy? -> SELECT SUM(venta_total) FROM public.get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
+Muéstrame las ventas -> SELECT SUM(venta_total) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Muéstrame las órdenes de venta -> SELECT numero_orden, fecha, estado, venta_total FROM public.get_ordenes_venta(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes de venta -> SELECT numero_orden, fecha, estado, venta_total FROM public.get_ordenes_venta(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes de venta importadas de Polo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes importadas de Mateo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes que llegaron hoy por correo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
+Borradores de hoy -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
+Detalle de las órdenes importadas de Polo de hoy -> SELECT numero_orden, producto, cantidad, unidad, precio, venta_total, almacen FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(CURRENT_DATE,CURRENT_DATE)
 ¿Cuántas ventas hubo hoy? -> INFORMACION_NO_DISPONIBLE
 ¿Cuántos clientes compraron hoy? -> INFORMACION_NO_DISPONIBLE
-¿Cuánto gasté este mes? -> SELECT SUM(costo_total_compra) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-¿Cuál es el stock actual? -> SELECT SUM(existencia_actual) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+¿Cuánto gasté este mes? -> SELECT SUM(costo_total_compra) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+¿Cuál es el stock actual? -> SELECT SUM(existencia_actual) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
 ¿Cuál es el stock actual en kilos? -> INFORMACION_NO_DISPONIBLE
-¿Cuánto inventario hay de aguacates? -> SELECT SUM(existencia_actual) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%'
-¿Cuánto inventario hay de chile de árbol? -> SELECT SUM(existencia_actual) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%chile de arbol%' OR nombre_producto ILIKE '%chile de árbol%'
+¿Cuánto inventario hay de aguacates? -> SELECT SUM(existencia_actual) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%'
+¿Cuánto inventario hay de chile de árbol? -> SELECT SUM(existencia_actual) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%chile de arbol%' OR nombre_producto ILIKE '%chile de árbol%'
 Stock del almacén de Cancún -> INFORMACION_NO_DISPONIBLE
 Muéstrame las ventas de Beacheladas Tulum -> INFORMACION_NO_DISPONIBLE
 ¿Cuánto le vendimos a Beacheladas Tulum este mes? -> INFORMACION_NO_DISPONIBLE
 ¿Cuánto le vendimos a Aguacates de Puebla en los últimos 10 días? -> INFORMACION_NO_DISPONIBLE
 ¿Y cuántas ventas fueron? (mismo cliente, mes pasado) -> INFORMACION_NO_DISPONIBLE
 Top 10 clientes por ventas -> INFORMACION_NO_DISPONIBLE
-¿Cuáles son los 5 productos más vendidos este mes? -> SELECT nombre_producto, SUM(venta_total) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(venta_total) DESC LIMIT 5
-Productos más vendidos -> SELECT nombre_producto, SUM(venta_total) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(venta_total) DESC LIMIT 5
-Productos más comprados -> SELECT nombre_producto, SUM(costo_total_compra) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(costo_total_compra) DESC LIMIT 5
+¿Cuáles son los 5 productos más vendidos este mes? -> SELECT nombre_producto, SUM(venta_total) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(venta_total) DESC LIMIT 5
+Productos más vendidos -> SELECT nombre_producto, SUM(venta_total) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(venta_total) DESC LIMIT 5
+Productos más comprados -> SELECT nombre_producto, SUM(costo_total_compra) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(costo_total_compra) DESC LIMIT 5
 Compras por proveedor -> INFORMACION_NO_DISPONIBLE
 Inventario bajo por almacén -> INFORMACION_NO_DISPONIBLE
 ¿Cuánto es el saldo total actual? -> SELECT SUM(pendiente) FROM vista_folios_digitales
@@ -296,20 +377,30 @@ Facturas contabilizadas este mes -> SELECT COUNT(DISTINCT id_folio_digital) FROM
 Pendiente de facturas -> SELECT SUM(pendiente) FROM vista_folios_digitales
 Top 5 clientes por facturas este mes -> SELECT razon_social, SUM(total) FROM vista_folios_digitales WHERE DATE_TRUNC('month',fecha_emision)=DATE_TRUNC('month',CURRENT_DATE) GROUP BY razon_social ORDER BY SUM(total) DESC LIMIT 5
 Compras de Puebla -> INFORMACION_NO_DISPONIBLE
-Ventas de marzo -> SELECT SUM(venta_total) FROM get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
+Ventas de marzo -> SELECT SUM(venta_total) FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
+Ventas de septiembre -> SELECT SUM(venta_total) FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
+¿Cuál es el número de la orden de venta del 1 de octubre? -> SELECT numero_orden, venta_total FROM public.get_ordenes_venta(DATE '2026-10-01',DATE '2026-10-01')
+Muéstrame las órdenes de venta de octubre -> SELECT numero_orden, fecha, venta_total FROM public.get_ordenes_venta(DATE '2026-10-01',DATE '2026-10-31')
+Número de la orden OV-20261001-091858 -> SELECT numero_orden, fecha, estado, venta_total FROM public.get_ordenes_venta(DATE '2026-10-01',DATE '2026-10-31') WHERE numero_orden ILIKE '%OV-20261001-091858%'
+Detalle de la orden OV-20261001-091858 -> SELECT numero_orden, nombre_producto, cantidad, precio_unitario, venta_total, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('OV-20261001-091858')
+Muéstrame el detallado de las órdenes del 1 de octubre -> SELECT numero_orden, nombre_producto, cantidad, precio_unitario, venta_total, numero_orden_trabajo, almacen, destino FROM public.get_detalle_ordenes(DATE '2026-10-01',DATE '2026-10-01')
+¿A qué orden de trabajo pertenece cada producto de OV-20261001-091858? -> SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('OV-20261001-091858')
+Órdenes de trabajo del 1 de octubre -> SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_ordenes(DATE '2026-10-01',DATE '2026-10-01')
+Almacén y destino de los productos de la orden OV-20261001-091858 -> SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('OV-20261001-091858')
+Ventas del mes pasado -> SELECT SUM(venta_total) FROM public.get_tablero_sku((DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '1 month')::date,(DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '1 day')::date)
 Ticket promedio este mes -> INFORMACION_NO_DISPONIBLE
-¿Cuál es el margen bruto? -> SELECT ROUND((((SUM(venta_total)-SUM(costo_total_compra))/NULLIF(SUM(venta_total),0))*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-¿Cuál es el margen bruto este mes? -> SELECT ROUND((((SUM(venta_total)-SUM(costo_total_compra))/NULLIF(SUM(venta_total),0))*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Margen bruto de aguacate -> SELECT nombre_producto, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%' ORDER BY venta_total DESC LIMIT 100
-Top 5 productos por margen bruto -> SELECT nombre_producto, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY margen_bruto DESC LIMIT 5
-¿Cuál es la cantidad vendida este mes? -> SELECT SUM(cantidad_venta) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Cantidad vendida de aguacate -> SELECT SUM(cantidad_venta) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%'
-Cantidad comprada este mes -> SELECT SUM(cantidad_compra) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Productos más vendidos por cantidad -> SELECT nombre_producto, SUM(cantidad_venta) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(cantidad_venta) DESC LIMIT 5
-¿Cuánta merma hubo este mes? -> SELECT SUM(cantidad_merma_desecho) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Costo de merma este mes -> SELECT SUM(costo_total_merma_desecho) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Muéstrame el reporte de gerencia -> SELECT nombre_producto, cantidad_compra, cantidad_venta, costo_total_compra, venta_total, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY venta_total DESC LIMIT 100
-Margen estimado de fresa -> SELECT nombre_producto, ROUND((margen_estimado*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%fresa%' ORDER BY venta_total DESC LIMIT 100
-Margen estimado de los 10 productos más vendidos -> SELECT nombre_producto, ROUND((margen_estimado*100)::numeric,1)::text || ' %' FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY venta_total DESC LIMIT 10
-Costo unitario de chile de árbol -> SELECT nombre_producto, costo_unitario FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%chile de arbol%' OR nombre_producto ILIKE '%chile de árbol%' ORDER BY venta_total DESC LIMIT 100
+¿Cuál es el margen bruto? -> SELECT ROUND((((SUM(venta_total)-SUM(costo_total_compra))/NULLIF(SUM(venta_total),0))*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+¿Cuál es el margen bruto este mes? -> SELECT ROUND((((SUM(venta_total)-SUM(costo_total_compra))/NULLIF(SUM(venta_total),0))*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Margen bruto de aguacate -> SELECT nombre_producto, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%' ORDER BY venta_total DESC LIMIT 100
+Top 5 productos por margen bruto -> SELECT nombre_producto, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY margen_bruto DESC LIMIT 5
+¿Cuál es la cantidad vendida este mes? -> SELECT SUM(cantidad_venta) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Cantidad vendida de aguacate -> SELECT SUM(cantidad_venta) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%aguacate%'
+Cantidad comprada este mes -> SELECT SUM(cantidad_compra) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Productos más vendidos por cantidad -> SELECT nombre_producto, SUM(cantidad_venta) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) GROUP BY nombre_producto ORDER BY SUM(cantidad_venta) DESC LIMIT 5
+¿Cuánta merma hubo este mes? -> SELECT SUM(cantidad_merma_desecho) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Costo de merma este mes -> SELECT SUM(costo_total_merma_desecho) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Muéstrame el reporte de gerencia -> SELECT nombre_producto, cantidad_compra, cantidad_venta, costo_total_compra, venta_total, ROUND((margen_bruto*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY venta_total DESC LIMIT 100
+Margen estimado de fresa -> SELECT nombre_producto, ROUND((margen_estimado*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%fresa%' ORDER BY venta_total DESC LIMIT 100
+Margen estimado de los 10 productos más vendidos -> SELECT nombre_producto, ROUND((margen_estimado*100)::numeric,1)::text || ' %' FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) ORDER BY venta_total DESC LIMIT 10
+Costo unitario de chile de árbol -> SELECT nombre_producto, costo_unitario FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE nombre_producto ILIKE '%chile de arbol%' OR nombre_producto ILIKE '%chile de árbol%' ORDER BY venta_total DESC LIMIT 100
 Margen bruto de Beacheladas Tulum -> INFORMACION_NO_DISPONIBLE
