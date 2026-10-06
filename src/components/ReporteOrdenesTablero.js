@@ -6,23 +6,24 @@ import * as XLSX from 'xlsx';
 
 const COLUMNAS_ORDEN = [
   ['numero_orden', 'Número'],
-  ['fecha_llegada', 'Llegada'],
-  ['fecha_pedido', 'Pedido'],
+  ['fecha', 'Fecha'],
+  ['orden_compra_hotel', 'Orden compra hotel'],
+  ['centro_consumo', 'Centro consumo'],
   ['comprador', 'Comprador'],
-  ['orden_compra', 'Orden de compra'],
   ['cantidad', 'Cantidad'],
   ['venta_total', 'Importe'],
 ];
 
 const COLUMNAS_DETALLE = [
   ['numero_orden', 'Número'],
-  ['fecha_llegada', 'Llegada'],
+  ['fecha', 'Fecha'],
   ['producto', 'Producto'],
   ['cantidad', 'Cantidad'],
   ['unidad', 'Unidad'],
   ['precio', 'Precio'],
   ['venta_total', 'Importe'],
-  ['almacen', 'Almacén'],
+  ['orden_compra_hotel', 'Orden compra hotel'],
+  ['centro_consumo', 'Centro consumo'],
 ];
 
 const DINERO = {
@@ -132,7 +133,9 @@ function formatoCantidad(valor) {
 
 function formatoCelda(valor, columna) {
   if (valor == null || valor === '') return '';
-  if (columna === 'fecha_llegada' || columna === 'fecha_pedido') return isoToDmy(diaIso(valor)) || String(valor);
+  if (columna === 'fecha' || columna === 'fecha_llegada' || columna === 'fecha_pedido') {
+    return isoToDmy(diaIso(valor)) || String(valor);
+  }
   if (DINERO[columna]) return formatoDinero(valor);
   if (columna === 'cantidad') return formatoCantidad(valor);
   return String(valor);
@@ -153,7 +156,7 @@ function serieDesdeOrdenes(ordenes, inicio, fin) {
   const dias = enumerarDias(inicio, fin);
   const mapa = new Map(dias.map((dia) => [dia, 0]));
   (ordenes || []).forEach((row) => {
-    const dia = diaIso(row.fecha_llegada);
+    const dia = diaIso(row.fecha || row.fecha_llegada || row.fecha_pedido);
     if (!mapa.has(dia)) return;
     mapa.set(dia, mapa.get(dia) + (aNumero(row.venta_total) || 0));
   });
@@ -306,22 +309,23 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
     const libro = XLSX.utils.book_new();
     const hojaOrdenes = (ordenes || []).map((row) => ({
       Número: row.numero_orden,
-      Llegada: isoToDmy(diaIso(row.fecha_llegada)),
-      Pedido: isoToDmy(diaIso(row.fecha_pedido)),
+      Fecha: isoToDmy(diaIso(row.fecha || row.fecha_pedido)),
+      'Orden compra hotel': row.orden_compra_hotel,
+      'Centro consumo': row.centro_consumo,
       Comprador: row.comprador,
-      'Orden de compra': row.orden_compra,
       Cantidad: aNumero(row.cantidad) || 0,
       Importe: aNumero(row.venta_total) || 0,
     }));
     const hojaDetalle = (detalle || []).map((row) => ({
       Número: row.numero_orden,
-      Llegada: isoToDmy(diaIso(row.fecha_llegada)),
-      Producto: row.producto,
+      Fecha: isoToDmy(diaIso(row.fecha || row.fecha_pedido)),
+      Producto: row.producto || row.nombre_producto,
       Cantidad: aNumero(row.cantidad) || 0,
       Unidad: row.unidad,
       Precio: aNumero(row.precio) || 0,
       Importe: aNumero(row.venta_total) || 0,
-      Almacén: row.almacen,
+      'Orden compra hotel': row.orden_compra_hotel,
+      'Centro consumo': row.centro_consumo,
     }));
     XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(hojaOrdenes), 'Ordenes');
     XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(hojaDetalle), 'Detalle');
@@ -447,18 +451,33 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
               </div>
 
               <div className={`rp-tab-panel${tab === 'detalle' ? ' rp-active' : ''}`}>
-                {ordenSeleccionada && (
-                  <div className="rp-result-actions" style={{ marginBottom: 12 }}>
-                    <span className="rp-row-count">Detalle de {ordenSeleccionada}</span>
+                <div className="rp-result-actions" style={{ marginBottom: 12 }}>
+                  <label className="rp-campo" htmlFor="ordenDetalle">
+                    Orden
+                    <select
+                      id="ordenDetalle"
+                      value={ordenSeleccionada}
+                      onChange={(event) => setOrdenSeleccionada(event.target.value)}
+                    >
+                      <option value="">Todas las órdenes</option>
+                      {ordenes.map((row) => (
+                        <option key={row.numero_orden} value={row.numero_orden}>
+                          {row.numero_orden}
+                          {row.orden_compra_hotel ? ` · ${row.orden_compra_hotel}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {ordenSeleccionada && (
                     <button className="rp-export" type="button" onClick={() => setOrdenSeleccionada('')}>
-                      Ver todas
+                      Mostrar todas
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
                 <Tabla
                   columnas={COLUMNAS_DETALLE}
                   filas={detalleVisible}
-                  rowKey={(row, index) => `${row.numero_orden}-${row.producto}-${index}`}
+                  rowKey={(row, index) => `${row.numero_orden}-${row.producto || row.nombre_producto}-${index}`}
                 />
               </div>
 

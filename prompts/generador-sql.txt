@@ -68,7 +68,7 @@ Si pide el detallado, las líneas, qué productos trae una orden, o a qué orden
 emp_jbr_cygnus_y9ihz.get_borradores(p_fecha_inicio, p_fecha_fin)
 ÚNICA fuente de las órdenes de venta importadas del correo de Polo o de Mateo, y de los borradores que llegan por correo.
 Una fila = una orden importada. No es una venta y no tiene orden de trabajo.
-Columnas: numero_orden, fecha_pedido, fecha_llegada, comprador, orden_compra, cantidad, venta_total.
+Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, comprador, orden_compra, orden_compra_hotel, centro_consumo, cantidad, venta_total.
 Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada del correo, no fecha_pedido. NUNCA filtres la llegada con WHERE.
 Si no hay fecha, este mes. Si dice hoy, CURRENT_DATE,CURRENT_DATE.
@@ -77,7 +77,7 @@ Cliente: WHERE comprador ILIKE '%valor%'. Orden de compra: WHERE orden_compra IL
 
 emp_jbr_cygnus_y9ihz.get_detalle_borradores(p_fecha_inicio, p_fecha_fin)
 Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo.
-Columnas: numero_orden, fecha_pedido, fecha_llegada, nombre_cliente, numero_pedido, producto, codigo_producto, cantidad, unidad, precio, venta_total, almacen, referencia_pedido.
+Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, nombre_cliente, numero_pedido, producto, nombre_producto, codigo_producto, cantidad, unidad, precio, venta_total, almacen, orden_compra_hotel, centro_consumo, referencia_pedido.
 almacen es el almacén que vino en el correo. No es la bodega de una orden de trabajo y no sustituye a public.get_detalle_ordenes.
 Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada. NUNCA filtres la llegada con WHERE.

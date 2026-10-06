@@ -12,6 +12,36 @@ export const maxDuration = 60;
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+function texto(valor) {
+  const limpio = String(valor ?? '').trim();
+  return limpio || '';
+}
+
+function fechaDe(row) {
+  return row?.fecha || row?.fecha_pedido || row?.fecha_llegada || null;
+}
+
+function normalizarOrden(row) {
+  return {
+    ...row,
+    fecha: fechaDe(row),
+    orden_compra_hotel: texto(row?.orden_compra_hotel) || texto(row?.orden_compra),
+    centro_consumo: texto(row?.centro_consumo),
+  };
+}
+
+function normalizarDetalle(row) {
+  const producto = texto(row?.producto) || texto(row?.nombre_producto);
+  return {
+    ...row,
+    fecha: fechaDe(row),
+    producto,
+    nombre_producto: producto,
+    orden_compra_hotel: texto(row?.orden_compra_hotel) || texto(row?.numero_pedido),
+    centro_consumo: texto(row?.centro_consumo),
+  };
+}
+
 export async function POST(request) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
@@ -62,8 +92,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       schema,
-      ordenes: ordenes || [],
-      detalle: detalle || [],
+      ordenes: (ordenes || []).map(normalizarOrden),
+      detalle: (detalle || []).map(normalizarDetalle),
     });
   } catch (error) {
     return NextResponse.json(
