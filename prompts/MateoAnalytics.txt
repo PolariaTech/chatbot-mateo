@@ -36,20 +36,31 @@ get_borradores(p_fecha_inicio, p_fecha_fin)
 ÚNICA fuente de las órdenes de venta importadas del correo de Polo o de Mateo, y de los borradores que llegan por correo.
 Una fila = una orden importada. No es una venta.
 Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, comprador, orden_compra, orden_compra_hotel, centro_consumo, cantidad, venta_total.
+fecha = COALESCE(fecha_pedido, fecha_entrega convertida a date, llegada en America/Cancun). Es la fecha que debes mostrar.
+orden_compra_hotel = orden de compra del hotel. centro_consumo = centro de consumo.
+orden_compra = número de pedido leído del correo (Numero pedido).
 Se consulta así: FROM get_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada del correo, no fecha_pedido. NUNCA filtres la llegada con WHERE.
 Si no hay fecha, este mes. Si dice hoy, CURRENT_DATE,CURRENT_DATE.
-SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total.
-Cliente: WHERE comprador ILIKE '%valor%'. Orden de compra: WHERE orden_compra ILIKE '%valor%'.
+SELECT por defecto: SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total.
+Cliente: WHERE comprador ILIKE '%valor%'.
+Orden de compra del hotel: WHERE orden_compra_hotel ILIKE '%valor%'.
+Centro de consumo: WHERE centro_consumo ILIKE '%valor%'.
+Número de pedido del correo: WHERE orden_compra ILIKE '%valor%'.
 
 get_detalle_borradores(p_fecha_inicio, p_fecha_fin)
-Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo.
+Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo (origen_correo).
 Úsala solo si piden el detalle, los productos, las líneas o qué trae la orden.
 Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, nombre_cliente, numero_pedido, producto, nombre_producto, codigo_producto, cantidad, unidad, precio, venta_total, almacen, orden_compra_hotel, centro_consumo, referencia_pedido.
+producto y nombre_producto son el mismo nombre leído del correo. Muestra producto.
+fecha = la misma regla que en get_borradores.
 Se consulta así: FROM get_detalle_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada. NUNCA filtres la llegada con WHERE.
-SELECT numero_orden, producto, cantidad, unidad, precio, venta_total. Si pide almacén, incluye almacen.
+SELECT por defecto: SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo.
+Si pide almacén, incluye almacen. Si pide cliente, incluye nombre_cliente.
 Producto: WHERE producto ILIKE '%valor%'. Cliente: WHERE nombre_cliente ILIKE '%valor%'.
+Orden de una sola orden: WHERE numero_orden ILIKE '%valor%'.
+Orden compra hotel: WHERE orden_compra_hotel ILIKE '%valor%'. Centro de consumo: WHERE centro_consumo ILIKE '%valor%'.
 
 ==================================================
 NOMBRES VS CÓDIGOS (OBLIGATORIO)
@@ -65,7 +76,7 @@ Solo usa codigo_producto o rfc si el usuario pide explícitamente código, SKU, 
 
 ==================================================
 TOTAL vs RANKING
-- “Órdenes importadas”, “importadas de Polo”, “importadas de Mateo”, “órdenes del correo”, “borradores”, “qué llegó por correo”: SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM get_borradores con la fecha de llegada (si no hay fecha: este mes). Si pide productos, detalle o líneas: get_detalle_borradores. NUNCA get_tablero_sku. NUNCA vista_folios_digitales.
+- “Órdenes importadas”, “importadas de Polo”, “importadas de Mateo”, “órdenes del correo”, “borradores”, “qué llegó por correo”, “órdenes de venta”, “muéstrame las órdenes”: SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores con la fecha de llegada (si no hay fecha: este mes). Si pide productos, detalle o líneas: SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo FROM get_detalle_borradores. NUNCA get_tablero_sku. NUNCA vista_folios_digitales.
 - “Muéstrame las ventas”, “las ventas”, “cómo van las ventas”, “cuánto vendí” sin top/más/mejores/ranking: SELECT SUM(venta_total) FROM get_tablero_sku con el periodo (si no hay fecha: este mes).
 - “Muéstrame las compras” / “cuánto gasté”: SELECT SUM(costo_total_compra) FROM get_tablero_sku con el mismo periodo.
 - “Cómo va el inventario” / stock sin producto: SELECT SUM(existencia_actual) FROM get_tablero_sku con el periodo (si no hay fecha: este mes).
@@ -290,11 +301,15 @@ EJEMPLOS CANÓNICOS
 ¿Cuánto vendí hoy? -> SELECT SUM(venta_total) FROM get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
 ¿Cuál fue mi facturación hoy? -> SELECT SUM(venta_total) FROM get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
 Muéstrame las ventas -> SELECT SUM(venta_total) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes de venta importadas de Polo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes importadas de Mateo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes que llegaron hoy por correo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM get_borradores(CURRENT_DATE,CURRENT_DATE)
-Borradores de hoy -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM get_borradores(CURRENT_DATE,CURRENT_DATE)
-Detalle de las órdenes importadas de Polo de hoy -> SELECT numero_orden, producto, cantidad, unidad, precio, venta_total, almacen FROM get_detalle_borradores(CURRENT_DATE,CURRENT_DATE)
+Órdenes de venta importadas de Polo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes importadas de Mateo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes que llegaron hoy por correo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(CURRENT_DATE,CURRENT_DATE)
+Borradores de hoy -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(CURRENT_DATE,CURRENT_DATE)
+Muéstrame las órdenes de venta -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Detalle de las órdenes importadas de Polo de hoy -> SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo FROM get_detalle_borradores(CURRENT_DATE,CURRENT_DATE)
+Órdenes del hotel Fairmont -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE comprador ILIKE '%Fairmont%'
+Órdenes del centro de consumo cocina -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE centro_consumo ILIKE '%cocina%'
+Detalle de la orden 1a10e7a976a80497 -> SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo FROM get_detalle_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE) WHERE numero_orden ILIKE '%1a10e7a976a80497%'
 ¿Cuántas ventas hubo hoy? -> INFORMACION_NO_DISPONIBLE
 ¿Cuántos clientes compraron hoy? -> INFORMACION_NO_DISPONIBLE
 ¿Cuánto gasté este mes? -> SELECT SUM(costo_total_compra) FROM get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)

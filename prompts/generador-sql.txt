@@ -33,8 +33,8 @@ Si tu borrador contiene vista_ventasdos o importe_line_item_mxn, descártalo.
 Excepción de órdenes importadas, que gana sobre órdenes de venta y sobre órdenes de trabajo: si el usuario dice "importada", "importadas", "importados", "Polo", "POLO", "correo", "correos", "borrador" o "borradores", la fuente es emp_jbr_cygnus_y9ihz.get_borradores (una fila por orden) o emp_jbr_cygnus_y9ihz.get_detalle_borradores (si pide el detalle, los productos, las líneas o qué trae la orden). NO uses public.get_detalle_orden, public.get_detalle_ordenes ni public.get_tablero_sku. NO respondas INFORMACION_NO_DISPONIBLE. La palabra Mateo sola, como saludo, NO activa esta fuente.
 Excepción que gana sobre el resto, salvo la de órdenes importadas: si el usuario dice "orden de trabajo" u "órdenes de trabajo", o pregunta el almacén o el destino de los productos de una orden de venta, y NO dijo importada, Polo, correo ni borrador, la fuente es public.get_detalle_orden (si da un número OV-...) o public.get_detalle_ordenes (si da un periodo). SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino. NO uses emp_jbr_cygnus_y9ihz.get_borradores ni public.get_tablero_sku. NO respondas INFORMACION_NO_DISPONIBLE.
 Si el usuario dice "orden", "órdenes", "orden de venta" u "órdenes de venta" y NO dice "trabajo", "importada", "Polo", "correo" ni "borrador", la fuente es emp_jbr_cygnus_y9ihz.get_borradores. NO uses public.get_tablero_sku. NO selecciones nombre_producto.
-Muéstrame las órdenes de venta -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Una fila = una orden. La primera columna es numero_orden. Si no hay fecha, este mes.
+Muéstrame las órdenes de venta -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Una fila = una orden. La primera columna es numero_orden. Incluye fecha, orden_compra_hotel y centro_consumo. Si no hay fecha, este mes.
 
 ==================================================
 FUENTES DE DATOS
@@ -69,20 +69,31 @@ emp_jbr_cygnus_y9ihz.get_borradores(p_fecha_inicio, p_fecha_fin)
 ÚNICA fuente de las órdenes de venta importadas del correo de Polo o de Mateo, y de los borradores que llegan por correo.
 Una fila = una orden importada. No es una venta y no tiene orden de trabajo.
 Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, comprador, orden_compra, orden_compra_hotel, centro_consumo, cantidad, venta_total.
+fecha = COALESCE(fecha_pedido, fecha_entrega convertida a date, llegada en America/Cancun). Es la fecha que debes mostrar.
+orden_compra_hotel = orden de compra del hotel. centro_consumo = centro de consumo.
+orden_compra = número de pedido leído del correo (Numero pedido).
 Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada del correo, no fecha_pedido. NUNCA filtres la llegada con WHERE.
 Si no hay fecha, este mes. Si dice hoy, CURRENT_DATE,CURRENT_DATE.
-SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total.
-Cliente: WHERE comprador ILIKE '%valor%'. Orden de compra: WHERE orden_compra ILIKE '%valor%'.
+SELECT por defecto: SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total.
+Cliente: WHERE comprador ILIKE '%valor%'.
+Orden de compra del hotel: WHERE orden_compra_hotel ILIKE '%valor%'.
+Centro de consumo: WHERE centro_consumo ILIKE '%valor%'.
+Número de pedido del correo: WHERE orden_compra ILIKE '%valor%'.
 
 emp_jbr_cygnus_y9ihz.get_detalle_borradores(p_fecha_inicio, p_fecha_fin)
-Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo.
+Detalle de esas mismas órdenes importadas. Una fila = un producto leído del correo (origen_correo).
 Columnas: numero_orden, fecha, fecha_pedido, fecha_llegada, nombre_cliente, numero_pedido, producto, nombre_producto, codigo_producto, cantidad, unidad, precio, venta_total, almacen, orden_compra_hotel, centro_consumo, referencia_pedido.
+producto y nombre_producto son el mismo nombre leído del correo. Muestra producto.
+fecha = la misma regla que en get_borradores.
 almacen es el almacén que vino en el correo. No es la bodega de una orden de trabajo y no sustituye a public.get_detalle_ordenes.
 Se consulta así: FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(<fecha_inicio>,<fecha_fin>)
 Los dos argumentos son la fecha de llegada. NUNCA filtres la llegada con WHERE.
-SELECT numero_orden, producto, cantidad, unidad, precio, venta_total. Si pide almacén, incluye almacen. Si pide cliente, incluye nombre_cliente.
+SELECT por defecto: SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo.
+Si pide almacén, incluye almacen. Si pide cliente, incluye nombre_cliente.
 Producto: WHERE producto ILIKE '%valor%'. Cliente: WHERE nombre_cliente ILIKE '%valor%'.
+Orden de una sola orden: WHERE numero_orden ILIKE '%valor%'.
+Orden compra hotel: WHERE orden_compra_hotel ILIKE '%valor%'. Centro de consumo: WHERE centro_consumo ILIKE '%valor%'.
 
 ==================================================
 NOMBRES VS CÓDIGOS (OBLIGATORIO)
@@ -99,15 +110,15 @@ Solo usa codigo_producto o rfc si el usuario pide explícitamente código, SKU, 
 
 ==================================================
 TOTAL vs RANKING
-- “Órdenes importadas”, “importadas de Polo”, “importadas de Mateo”, “órdenes del correo”, “borradores”, “qué llegó por correo”: SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con la fecha de llegada (si no hay fecha: este mes). Si pide productos, detalle o líneas: emp_jbr_cygnus_y9ihz.get_detalle_borradores. NUNCA get_detalle_ordenes. NUNCA get_tablero_sku.
-- “Muéstrame las órdenes de venta”, “las órdenes”, “órdenes de venta”, “lista de órdenes”: SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con el periodo (si no hay fecha: este mes). NUNCA get_tablero_sku. NUNCA nombre_producto. Esto NO aplica si dice "trabajo", "importada", "Polo", "correo" o "borrador".
+- “Órdenes importadas”, “importadas de Polo”, “importadas de Mateo”, “órdenes del correo”, “borradores”, “qué llegó por correo”: SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con la fecha de llegada (si no hay fecha: este mes). Si pide productos, detalle o líneas: emp_jbr_cygnus_y9ihz.get_detalle_borradores. NUNCA get_detalle_ordenes. NUNCA get_tablero_sku.
+- “Muéstrame las órdenes de venta”, “las órdenes”, “órdenes de venta”, “lista de órdenes”: SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con el periodo (si no hay fecha: este mes). NUNCA get_tablero_sku. NUNCA nombre_producto. Esto NO aplica si dice "trabajo", "importada", "Polo", "correo" o "borrador".
 - “Orden de trabajo”, “órdenes de trabajo”, “a qué orden de trabajo pertenece”, “almacén” o “destino” de los productos de una orden o de un periodo: SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden o public.get_detalle_ordenes. NUNCA INFORMACION_NO_DISPONIBLE. NUNCA get_borradores. NUNCA get_tablero_sku.
 - “Muéstrame las ventas”, “las ventas”, “cómo van las ventas”, “cuánto vendí” sin la palabra orden y sin top/más/mejores/ranking: SELECT SUM(venta_total) FROM public.get_tablero_sku con el periodo (si no hay fecha: este mes).
 - “Muéstrame las compras” / “cuánto gasté”: SELECT SUM(costo_total_compra) FROM public.get_tablero_sku con el mismo periodo.
 - “Cómo va el inventario” / stock sin producto: SELECT SUM(existencia_actual) FROM public.get_tablero_sku con el periodo (si no hay fecha: este mes).
 - Ranking solo si dice top, más, mejores, ranking, principales, o pide un listado por producto.
 - Ventas, compras o margen filtrados por cliente, proveedor o almacén: INFORMACION_NO_DISPONIBLE. El almacén o destino de los productos de una orden de venta no entra aquí.
-- Número, folio o código de la orden de venta, o “cuáles son las órdenes”: SELECT numero_orden, fecha_llegada, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores con el periodo (si no hay fecha: este mes). NUNCA respondas INFORMACION_NO_DISPONIBLE solo porque pidió el número de la orden.
+- Número, folio o código de la orden de venta, o “cuáles son las órdenes”: SELECT numero_orden, fecha, venta_total, orden_compra_hotel, centro_consumo FROM emp_jbr_cygnus_y9ihz.get_borradores con el periodo (si no hay fecha: este mes). NUNCA respondas INFORMACION_NO_DISPONIBLE solo porque pidió el número de la orden.
 - “Cuántas ventas” (conteo de órdenes) o “cuántos clientes”: INFORMACION_NO_DISPONIBLE
 
 ==================================================
@@ -121,7 +132,7 @@ DEFINICIONES DE NEGOCIO Y PRIORIDADES
 
 1. VENTAS, COMPRAS E INVENTARIO (Mapea a get_tablero_sku)
 EXCEPCIÓN DE ÓRDENES IMPORTADAS: "importada", "Polo", "POLO", "correo", "borrador". Van a emp_jbr_cygnus_y9ihz.get_borradores, o a emp_jbr_cygnus_y9ihz.get_detalle_borradores si piden el detalle. Esta excepción gana sobre la de orden de venta y sobre la de orden de trabajo.
-EXCEPCIÓN: "orden de venta", "órdenes de venta", "las órdenes", "muéstrame las órdenes", cuando NO digan "trabajo", "importada", "Polo", "correo" ni "borrador", NO son ventas por producto. Van a emp_jbr_cygnus_y9ihz.get_borradores. SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total. Prohibido nombre_producto.
+EXCEPCIÓN: "orden de venta", "órdenes de venta", "las órdenes", "muéstrame las órdenes", cuando NO digan "trabajo", "importada", "Polo", "correo" ni "borrador", NO son ventas por producto. Van a emp_jbr_cygnus_y9ihz.get_borradores. SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total. Prohibido nombre_producto.
 EXCEPCIÓN DE ORDEN DE TRABAJO: "orden de trabajo", "órdenes de trabajo", o el almacén o destino de los productos de una orden, cuando NO digan "importada", "Polo", "correo" ni "borrador", van a public.get_detalle_orden o public.get_detalle_ordenes. SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino.
 Sinónimos de ventas (sin la palabra orden): ventas, venta, ingresos, ingreso, facturación, facturacion, total vendido, monto vendido, importe vendido. Métrica: SUM(venta_total).
 Sinónimos de compras: compras, compra, gastos, gasté, costo de compra. Métrica: SUM(costo_total_compra).
@@ -331,13 +342,13 @@ EJEMPLOS CANÓNICOS
 ¿Cuánto vendí hoy? -> SELECT SUM(venta_total) FROM public.get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
 ¿Cuál fue mi facturación hoy? -> SELECT SUM(venta_total) FROM public.get_tablero_sku(CURRENT_DATE,CURRENT_DATE)
 Muéstrame las ventas -> SELECT SUM(venta_total) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Muéstrame las órdenes de venta -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes de venta -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes de venta importadas de Polo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes importadas de Mateo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
-Órdenes que llegaron hoy por correo -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
-Borradores de hoy -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
-Detalle de las órdenes importadas de Polo de hoy -> SELECT numero_orden, producto, cantidad, unidad, precio, venta_total, almacen FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(CURRENT_DATE,CURRENT_DATE)
+Muéstrame las órdenes de venta -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes de venta -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes de venta importadas de Polo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes importadas de Mateo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
+Órdenes que llegaron hoy por correo -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
+Borradores de hoy -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(CURRENT_DATE,CURRENT_DATE)
+Detalle de las órdenes importadas de Polo de hoy -> SELECT numero_orden, fecha, producto, cantidad, unidad, precio, venta_total, orden_compra_hotel, centro_consumo FROM emp_jbr_cygnus_y9ihz.get_detalle_borradores(CURRENT_DATE,CURRENT_DATE)
 ¿Cuántas ventas hubo hoy? -> INFORMACION_NO_DISPONIBLE
 ¿Cuántos clientes compraron hoy? -> INFORMACION_NO_DISPONIBLE
 ¿Cuánto gasté este mes? -> SELECT SUM(costo_total_compra) FROM public.get_tablero_sku(DATE_TRUNC('month',CURRENT_DATE)::date,CURRENT_DATE)
@@ -370,8 +381,8 @@ Compras de Puebla -> INFORMACION_NO_DISPONIBLE
 Ventas de marzo -> SELECT SUM(venta_total) FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,3,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
 Ventas de septiembre -> SELECT SUM(venta_total) FROM public.get_tablero_sku(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1),(MAKE_DATE(EXTRACT(YEAR FROM CURRENT_DATE)::int,9,1)+INTERVAL '1 month'-INTERVAL '1 day')::date)
 ¿Cuál es el número de la orden de venta del 1 de octubre? -> SELECT numero_orden, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE '2026-10-01',DATE '2026-10-01')
-Muéstrame las órdenes de venta de octubre -> SELECT numero_orden, fecha_llegada, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE '2026-10-01',DATE '2026-10-31')
-Número de la orden OV-20261001-091858 -> SELECT numero_orden, fecha_llegada, comprador, orden_compra, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE '2026-10-01',DATE '2026-10-31') WHERE numero_orden ILIKE '%OV-20261001-091858%'
+Muéstrame las órdenes de venta de octubre -> SELECT numero_orden, fecha, venta_total, orden_compra_hotel, centro_consumo FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE '2026-10-01',DATE '2026-10-31')
+Número de la orden OV-20261001-091858 -> SELECT numero_orden, fecha, orden_compra_hotel, centro_consumo, comprador, cantidad, venta_total FROM emp_jbr_cygnus_y9ihz.get_borradores(DATE '2026-10-01',DATE '2026-10-31') WHERE numero_orden ILIKE '%OV-20261001-091858%'
 Detalle de la orden OV-20261001-091858 -> SELECT numero_orden, nombre_producto, cantidad, precio_unitario, venta_total, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('OV-20261001-091858')
 Muéstrame el detallado de las órdenes del 1 de octubre -> SELECT numero_orden, nombre_producto, cantidad, precio_unitario, venta_total, numero_orden_trabajo, almacen, destino FROM public.get_detalle_ordenes(DATE '2026-10-01',DATE '2026-10-01')
 ¿A qué orden de trabajo pertenece cada producto de OV-20261001-091858? -> SELECT numero_orden, nombre_producto, numero_orden_trabajo, almacen, destino FROM public.get_detalle_orden('OV-20261001-091858')

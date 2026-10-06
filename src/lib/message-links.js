@@ -8,9 +8,9 @@ const NO_LINK_AVAILABLE_RE = /no tengo un enlace|enlace disponible|no (?:tengo|p
 
 const REPORT_ROUTES = [
   {
-    keys: ['órdenes de venta', 'ordenes de venta', 'orden de venta', 'reporte de órdenes', 'reporte de ordenes'],
+    keys: ['órdenes de venta', 'ordenes de venta', 'orden de venta', 'reporte de órdenes', 'reporte de ordenes', 'órdenes', 'ordenes', 'borrador', 'importada', 'correo'],
     path: '/reporteordenes',
-    label: 'reporte de órdenes de venta',
+    label: 'reporte de órdenes',
   },
   {
     keys: ['contabilidad', 'folio', 'factura', 'cfdi', 'uuid', 'timbr', 'cancelac'],

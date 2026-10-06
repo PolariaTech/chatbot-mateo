@@ -259,7 +259,9 @@
 }
 
 .reportes-root input[type='date'],
-.reportes-root input[type='text'] {
+.reportes-root input[type='text'],
+.reportes-root select,
+.reportes-root .rp-select {
   width: 100%;
   padding: 12px 14px;
   border-radius: 10px;
@@ -336,8 +338,55 @@
   filter: none;
 }
 
-.reportes-root input:focus {
+.reportes-root input:focus,
+.reportes-root select:focus,
+.reportes-root .rp-select:focus {
   border-color: var(--rp-accent);
+}
+
+.reportes-root select,
+.reportes-root .rp-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  min-width: min(100%, 420px);
+  max-width: 560px;
+  padding-right: 42px;
+  cursor: pointer;
+  font-family: inherit;
+  color-scheme: dark;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--rp-accent) 50%),
+    linear-gradient(135deg, var(--rp-accent) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) calc(50% - 2px),
+    calc(100% - 14px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.reportes-root select option,
+.reportes-root .rp-select option {
+  background: #0a1f18;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--rp-line);
+  background: rgba(4, 14, 12, 0.45);
+}
+
+.reportes-root .rp-filter-bar .rp-campo {
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 560px;
 }
 
 .reportes-root .rp-actions {

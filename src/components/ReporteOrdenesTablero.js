@@ -451,11 +451,12 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
               </div>
 
               <div className={`rp-tab-panel${tab === 'detalle' ? ' rp-active' : ''}`}>
-                <div className="rp-result-actions" style={{ marginBottom: 12 }}>
-                  <label className="rp-campo" htmlFor="ordenDetalle">
-                    Orden
+                <div className="rp-filter-bar">
+                  <div className="rp-campo">
+                    <label htmlFor="ordenDetalle">Orden</label>
                     <select
                       id="ordenDetalle"
+                      className="rp-select"
                       value={ordenSeleccionada}
                       onChange={(event) => setOrdenSeleccionada(event.target.value)}
                     >
@@ -464,10 +465,11 @@ export default function ReporteOrdenesTablero({ accessToken, onSessionInvalid })
                         <option key={row.numero_orden} value={row.numero_orden}>
                           {row.numero_orden}
                           {row.orden_compra_hotel ? ` · ${row.orden_compra_hotel}` : ''}
+                          {row.centro_consumo ? ` · ${row.centro_consumo}` : ''}
                         </option>
                       ))}
                     </select>
-                  </label>
+                  </div>
                   {ordenSeleccionada && (
                     <button className="rp-export" type="button" onClick={() => setOrdenSeleccionada('')}>
                       Mostrar todas
