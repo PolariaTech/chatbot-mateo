@@ -538,11 +538,13 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { right: 8 } },
       plugins: { legend: { display: false } },
       scales: {
         x: {
           position: 'top',
           beginAtZero: true,
+          grace: '6%',
           ticks,
           grid: { color: grid },
         },
@@ -607,6 +609,7 @@ export default function ReporteGerenciaTablero({ accessToken, onSessionInvalid }
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { right: 8 } },
             plugins: { legend: { display: false } },
             scales: {
               x: {

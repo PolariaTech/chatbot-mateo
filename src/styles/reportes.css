@@ -66,7 +66,9 @@
 }
 
 .reportes-root .rp-page {
+  width: 100%;
   max-width: 1280px;
+  min-width: 0;
   margin: 0 auto;
   padding: 8px 28px 48px;
 }
@@ -97,6 +99,8 @@
 
 .reportes-root .rp-container {
   margin-top: 0;
+  min-width: 0;
+  max-width: 100%;
   background: var(--rp-card);
   border: 1px solid var(--rp-line);
   border-radius: var(--rp-radius);
@@ -812,9 +816,11 @@
 
 .reportes-root .rp-charts {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
+  width: 100%;
+  min-width: 0;
 }
 
 .reportes-root .rp-chart-card {
@@ -823,6 +829,8 @@
   padding: 14px;
   background: rgba(4, 14, 12, 0.45);
   min-height: 280px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .reportes-root .rp-chart-card h3 {
@@ -882,22 +890,33 @@
 .reportes-root .rp-chart-wrap {
   position: relative;
   height: 260px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .reportes-root .rp-chart-scroll {
   max-height: 380px;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   position: relative;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .reportes-root .rp-chart-scroll-inner {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-.reportes-root .rp-chart-scroll-inner canvas {
+.reportes-root .rp-chart-scroll-inner canvas,
+.reportes-root .rp-chart-wrap canvas,
+.reportes-root .rp-serie-chart canvas {
   display: block;
+  max-width: 100%;
 }
 
 .reportes-root .rp-chart-scroll::-webkit-scrollbar {
@@ -1070,6 +1089,9 @@
 .reportes-root .rp-serie-chart {
   position: relative;
   height: 240px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 @media (min-width: 900px) {
@@ -1078,7 +1100,7 @@
   }
 
   .reportes-root .rp-charts {
-    grid-template-columns: 1.1fr 1fr;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   }
 
   .reportes-root .rp-chart-card-wide {
