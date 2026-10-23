@@ -257,6 +257,9 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
       atrasoHora: lista
         .filter((row) => row.seccion === 'atraso_hora')
         .sort((a, b) => String(a.clave).localeCompare(String(b.clave))),
+      tendencia: lista.filter((row) => row.seccion === 'tendencia'),
+      reloj: lista.filter((row) => row.seccion === 'reloj'),
+      rojoHora: lista.filter((row) => row.seccion === 'rojo_hora'),
       dia: lista
         .filter((row) => row.seccion === 'dia')
         .sort((a, b) => String(a.clave).localeCompare(String(b.clave))),
@@ -425,6 +428,11 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
               </section>
               <GraficoEtapas filas={cortes.etapa} />
               <CicloEtapas filas={cortes.ciclo} />
+              <TendenciaMediana filas={cortes.tendencia} />
+              <div className="rp-siguientes-grid">
+                <EnvejecimientoAbiertas filas={cortes.reloj} />
+                <RojoPorHora filas={cortes.rojoHora} />
+              </div>
               <div className="rp-charts">
                 <Grafico
                   titulo="Importe por día de pedido"
@@ -539,10 +547,206 @@ function tonoCubeta(tope, limite) {
   return 'rp-seg-tiempo';
 }
 
+const CUBETAS_RELOJ = [
+  ['015', '0-15', 15],
+  ['030', '15-30', 30],
+  ['045', '30-45', 45],
+  ['060', '45-60', 60],
+  ['090', '60-90', 90],
+  ['120', '90-120', 120],
+  ['121', '>2 h', 121],
+];
+
+const SERIES_TENDENCIA = [
+  ['0', 'Por confirmar', '#2ee6a8', 60],
+  ['1', 'Confirmada', '#7eb6ff', 60],
+  ['2', 'Alistamiento', '#d5ddd8', 120],
+];
+
+function TendenciaMediana({ filas }) {
+  const ref = useRef(null);
+  const graficoRef = useRef(null);
+  const dias = [...new Set(filas.map((row) => row.etiqueta))].sort();
+  const firma = filas.map((row) => `${row.clave}|${row.etiqueta}|${row.cantidad}`).join(';');
+
+  useEffect(() => {
+    graficoRef.current?.destroy();
+    graficoRef.current = null;
+    if (!ref.current || !dias.length) return undefined;
+    graficoRef.current = new Chart(ref.current, {
+      type: 'line',
+      data: {
+        labels: dias.map((dia) => isoToDmy(dia)),
+        datasets: [
+          ...SERIES_TENDENCIA.map(([clave, nombre, color, limite]) => ({
+            label: nombre,
+            data: dias.map((dia) => {
+              const row = filas.find((item) => item.clave === clave && item.etiqueta === dia);
+              const mediana = aNumero(row?.cantidad);
+              if (mediana == null) return null;
+              return Math.round((mediana / limite) * 1000) / 10;
+            }),
+            borderColor: color,
+            backgroundColor: color,
+            spanGaps: true,
+            tension: 0.25,
+            pointRadius: 2,
+            borderWidth: 2,
+          })),
+          {
+            label: '100% del límite',
+            data: dias.map(() => 100),
+            borderColor: '#f3b3ad',
+            borderDash: [4, 4],
+            pointRadius: 0,
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#c9d4d4' } } },
+        scales: {
+          x: { ticks: { color: '#8aa89c', maxRotation: 0 }, grid: { color: 'rgba(90, 200, 160, 0.12)' } },
+          y: {
+            beginAtZero: true,
+            ticks: { color: '#8aa89c', callback: (valor) => `${valor} %` },
+            grid: { color: 'rgba(90, 200, 160, 0.12)' },
+          },
+        },
+      },
+    });
+    return () => {
+      graficoRef.current?.destroy();
+      graficoRef.current = null;
+    };
+  }, [firma]);
+
+  return (
+    <div className="rp-chart-card rp-chart-card-wide rp-ciclo-card">
+      <h3>Tendencia · mediana por etapa</h3>
+      {dias.length
+        ? <div className="rp-chart-wrap"><canvas ref={ref} /></div>
+        : <p className="rp-ciclo-vacio">Sin horas de salida por día.</p>}
+    </div>
+  );
+}
+
+function EnvejecimientoAbiertas({ filas }) {
+  const cubetas = CUBETAS_RELOJ.map(([id, nombre, tope]) => {
+    const partes = SERIES_TENDENCIA.map(([clave, , , limite]) => ({
+      clave,
+      ordenes: aNumero(filas.find((row) => row.clave === clave && row.etiqueta === id)?.ordenes) || 0,
+      tono: tope > limite ? 'rp-seg-atrasada' : tope > limite * 0.75 ? 'rp-seg-riesgo' : 'rp-seg-tiempo',
+    }));
+    return { id, nombre, ordenes: partes.reduce((suma, parte) => suma + parte.ordenes, 0), partes };
+  });
+  const maximo = Math.max(...cubetas.map((cubeta) => cubeta.ordenes), 0);
+
+  return (
+    <div className="rp-chart-card rp-ciclo-card">
+      <h3>Envejecimiento de OVs abiertas</h3>
+      <div className="rp-histo">
+        {cubetas.map((cubeta) => (
+          <div className="rp-histo-col" key={cubeta.id}>
+            <div className="rp-histo-track">
+              <div className="rp-histo-pila" style={{ height: maximo ? `${(cubeta.ordenes / maximo) * 100}%` : 0 }}>
+                {cubeta.partes.filter((parte) => parte.ordenes > 0).map((parte) => (
+                  <div key={parte.clave} className={parte.tono} style={{ flex: parte.ordenes }} />
+                ))}
+              </div>
+            </div>
+            <span>{cubeta.nombre}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RojoPorHora({ filas }) {
+  const horas = Array.from({ length: 24 }, (_, hora) => String(hora).padStart(2, '0'));
+  return (
+    <div className="rp-chart-card rp-ciclo-card">
+      <h3>Atrasos por hora del día</h3>
+      <div className="rp-rojo">
+        {SERIES_TENDENCIA.map(([clave, nombre]) => (
+          <div className="rp-rojo-fila" key={clave}>
+            <div className="rp-rojo-nombre">{nombre}</div>
+            <div className="rp-rojo-horas">
+              {horas.map((hora) => {
+                const ordenes = aNumero(filas.find((row) => row.clave === clave && row.etiqueta === hora)?.ordenes) || 0;
+                return (
+                  <div className={ordenes ? 'rp-rojo-celda rp-rojo-llena' : 'rp-rojo-celda'} key={hora}>
+                    {ordenes || ''}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <div className="rp-rojo-fila">
+          <div className="rp-rojo-nombre" />
+          <div className="rp-rojo-eje">
+            {horas.map((hora) => (
+              <span key={hora}>{Number(hora) % 3 === 0 ? String(Number(hora)) : ''}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CicloPromedio({ filas }) {
+  const tramos = [
+    { clave: '0', nombre: 'Por confirmar', modo: 'espera', limite: 60, presupuesto: '1 h' },
+    { clave: '1', nombre: 'Confirmada', modo: 'espera', limite: 60, presupuesto: '1 h' },
+    { clave: '2', nombre: 'Alistamiento', modo: 'trabajo', limite: 120, presupuesto: '2 h' },
+  ].map((tramo) => {
+    const mediana = filas.find((row) => row.clave === tramo.clave && row.etiqueta === 'mediana');
+    const cumple = filas.find((row) => row.clave === tramo.clave && row.etiqueta === 'cumple');
+    const ordenes = aNumero(mediana?.ordenes) || 0;
+    const promedio = ordenes ? aNumero(cumple?.cantidad) : null;
+    return { ...tramo, ordenes, promedio };
+  });
+
+  return (
+    <div className="rp-chart-card rp-ciclo-vida">
+      <h3>Ciclo de vida promedio de una OV</h3>
+      <div className="rp-vida">
+        {tramos.map((tramo) => {
+          const razon = tramo.promedio == null ? 0 : Math.min(tramo.promedio / tramo.limite, 1);
+          const paso = tramo.promedio != null && tramo.promedio > tramo.limite;
+          return (
+            <div className="rp-vida-tramo" key={tramo.clave} style={{ flex: tramo.limite }}>
+              <div className="rp-vida-nombre">{`${tramo.nombre} · ${tramo.modo}`}</div>
+              <div className={`rp-vida-pista${tramo.promedio == null ? ' rp-vida-vacia' : ''}`}>
+                {tramo.promedio != null && (
+                  <div
+                    className={paso ? 'rp-seg-atrasada' : 'rp-seg-tiempo'}
+                    style={{ width: `${razon * 100}%` }}
+                  />
+                )}
+              </div>
+              <div className="rp-vida-pie">
+                {tramo.promedio == null ? 'Sin hora de salida' : `Promedio ${formatoMinutos(tramo.promedio)}`}
+              </div>
+              <div className="rp-vida-presupuesto">{`Presupuesto ${tramo.presupuesto}`}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CicloEtapas({ filas }) {
   return (
     <section className="rp-ciclo">
       <h2>Dónde nos estamos quedando</h2>
+      <CicloPromedio filas={filas} />
       <p className="rp-etapas-regla">Límites fijos: 60 min, 60 min y 2 h. Cada barra es el tiempo hasta salir de la etapa.</p>
       <div className="rp-ciclo-grid">
         {LIMITES_CICLO.map((etapa) => {

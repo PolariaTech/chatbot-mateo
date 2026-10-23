@@ -472,6 +472,96 @@ AS $$
     GROUP BY p.id_orden_venta
   ) ev ON ev.hora = h.hora
   GROUP BY h.hora
+  UNION ALL
+  SELECT
+    'tendencia'::text,
+    d.etapa,
+    d.fecha::text,
+    COUNT(*)::bigint,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY d.minutos)::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      '0'::text AS etapa,
+      EXTRACT(EPOCH FROM (m.confirmo - m.entro)) / 60.0 AS minutos,
+      (m.confirmo AT TIME ZONE 'America/Cancun')::date AS fecha
+    FROM marcas m
+    WHERE m.entro IS NOT NULL AND m.confirmo IS NOT NULL AND m.confirmo >= m.entro
+    UNION ALL
+    SELECT
+      '1'::text,
+      EXTRACT(EPOCH FROM (m.alisto - m.confirmo)) / 60.0,
+      (m.alisto AT TIME ZONE 'America/Cancun')::date
+    FROM marcas m
+    WHERE m.confirmo IS NOT NULL AND m.alisto IS NOT NULL AND m.alisto >= m.confirmo
+    UNION ALL
+    SELECT
+      '2'::text,
+      EXTRACT(EPOCH FROM (p.estado_desde - m.alisto)) / 60.0,
+      (p.estado_desde AT TIME ZONE 'America/Cancun')::date
+    FROM marcas m
+    INNER JOIN por_orden p ON p.id_orden_venta = m.id_orden_venta
+    WHERE m.alisto IS NOT NULL
+      AND p.estado = 'alistada'
+      AND p.estado_desde IS NOT NULL
+      AND p.estado_desde >= m.alisto
+  ) d
+  GROUP BY d.etapa, d.fecha
+  UNION ALL
+  SELECT
+    'reloj'::text,
+    q.etapa,
+    q.cubeta,
+    COUNT(*)::bigint,
+    0::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      CASE p.estado
+        WHEN 'por_confirmar' THEN '0'
+        WHEN 'confirmada' THEN '1'
+        ELSE '2'
+      END AS etapa,
+      CASE
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 15 THEN '015'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 30 THEN '030'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 45 THEN '045'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 60 THEN '060'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 90 THEN '090'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 120 THEN '120'
+        ELSE '121'
+      END AS cubeta
+    FROM por_orden p
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+      AND p.estado_desde IS NOT NULL
+  ) q
+  GROUP BY q.etapa, q.cubeta
+  UNION ALL
+  SELECT
+    'rojo_hora'::text,
+    r.etapa,
+    lpad(EXTRACT(HOUR FROM r.cruce AT TIME ZONE 'America/Cancun')::int::text, 2, '0'),
+    COUNT(*)::bigint,
+    0::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      CASE p.estado
+        WHEN 'por_confirmar' THEN '0'
+        WHEN 'confirmada' THEN '1'
+        ELSE '2'
+      END AS etapa,
+      CASE p.estado
+        WHEN 'alistamiento' THEN p.estado_desde + interval '120 minutes'
+        ELSE p.estado_desde + interval '60 minutes'
+      END AS cruce
+    FROM por_orden p
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+      AND p.estado_desde IS NOT NULL
+  ) r
+  WHERE r.cruce <= now()
+    AND (r.cruce AT TIME ZONE 'America/Cancun')::date BETWEEN p_fecha_inicio AND p_fecha_fin
+  GROUP BY r.etapa, 3
 $$;
 
 GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_ordenes(date, date)
@@ -943,6 +1033,96 @@ AS $$
     GROUP BY p.id_orden_venta
   ) ev ON ev.hora = h.hora
   GROUP BY h.hora
+  UNION ALL
+  SELECT
+    'tendencia'::text,
+    d.etapa,
+    d.fecha::text,
+    COUNT(*)::bigint,
+    percentile_cont(0.5) WITHIN GROUP (ORDER BY d.minutos)::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      '0'::text AS etapa,
+      EXTRACT(EPOCH FROM (m.confirmo - m.entro)) / 60.0 AS minutos,
+      (m.confirmo AT TIME ZONE 'America/Cancun')::date AS fecha
+    FROM marcas m
+    WHERE m.entro IS NOT NULL AND m.confirmo IS NOT NULL AND m.confirmo >= m.entro
+    UNION ALL
+    SELECT
+      '1'::text,
+      EXTRACT(EPOCH FROM (m.alisto - m.confirmo)) / 60.0,
+      (m.alisto AT TIME ZONE 'America/Cancun')::date
+    FROM marcas m
+    WHERE m.confirmo IS NOT NULL AND m.alisto IS NOT NULL AND m.alisto >= m.confirmo
+    UNION ALL
+    SELECT
+      '2'::text,
+      EXTRACT(EPOCH FROM (p.estado_desde - m.alisto)) / 60.0,
+      (p.estado_desde AT TIME ZONE 'America/Cancun')::date
+    FROM marcas m
+    INNER JOIN por_orden p ON p.id_orden_venta = m.id_orden_venta
+    WHERE m.alisto IS NOT NULL
+      AND p.estado = 'alistada'
+      AND p.estado_desde IS NOT NULL
+      AND p.estado_desde >= m.alisto
+  ) d
+  GROUP BY d.etapa, d.fecha
+  UNION ALL
+  SELECT
+    'reloj'::text,
+    q.etapa,
+    q.cubeta,
+    COUNT(*)::bigint,
+    0::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      CASE p.estado
+        WHEN 'por_confirmar' THEN '0'
+        WHEN 'confirmada' THEN '1'
+        ELSE '2'
+      END AS etapa,
+      CASE
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 15 THEN '015'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 30 THEN '030'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 45 THEN '045'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 60 THEN '060'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 90 THEN '090'
+        WHEN EXTRACT(EPOCH FROM (now() - p.estado_desde)) / 60.0 <= 120 THEN '120'
+        ELSE '121'
+      END AS cubeta
+    FROM por_orden p
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+      AND p.estado_desde IS NOT NULL
+  ) q
+  GROUP BY q.etapa, q.cubeta
+  UNION ALL
+  SELECT
+    'rojo_hora'::text,
+    r.etapa,
+    lpad(EXTRACT(HOUR FROM r.cruce AT TIME ZONE 'America/Cancun')::int::text, 2, '0'),
+    COUNT(*)::bigint,
+    0::numeric,
+    0::numeric
+  FROM (
+    SELECT
+      CASE p.estado
+        WHEN 'por_confirmar' THEN '0'
+        WHEN 'confirmada' THEN '1'
+        ELSE '2'
+      END AS etapa,
+      CASE p.estado
+        WHEN 'alistamiento' THEN p.estado_desde + interval '120 minutes'
+        ELSE p.estado_desde + interval '60 minutes'
+      END AS cruce
+    FROM por_orden p
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+      AND p.estado_desde IS NOT NULL
+  ) r
+  WHERE r.cruce <= now()
+    AND (r.cruce AT TIME ZONE 'America/Cancun')::date BETWEEN p_fecha_inicio AND p_fecha_fin
+  GROUP BY r.etapa, 3
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_operacion_ordenes(date, date)
