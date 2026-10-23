@@ -780,6 +780,60 @@
   gap: 12px;
 }
 
+.reportes-root .rp-donde {
+  margin-top: 28px;
+}
+
+.reportes-root .rp-donde h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-donde-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.reportes-root .rp-donde .rp-kpi-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 28px;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-kpi-ancho {
+  grid-column: span 2;
+}
+
+.reportes-root .rp-donde .rp-kpi-ancho .rp-kpi-value {
+  font-size: 22px;
+  white-space: nowrap;
+  word-break: normal;
+}
+
+.reportes-root .rp-donde .rp-kpi-value::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rp-dot, var(--rp-accent));
+  flex: none;
+}
+
+.reportes-root .rp-dot-verde { --rp-dot: #2ee6a8; }
+.reportes-root .rp-dot-cian { --rp-dot: #19e3c8; }
+.reportes-root .rp-dot-amarillo { --rp-dot: #e6c84a; }
+.reportes-root .rp-dot-oro { --rp-dot: #d4e07a; }
+.reportes-root .rp-dot-rosa { --rp-dot: #f3b3ad; }
+.reportes-root .rp-dot-gris { --rp-dot: #8aa89c; }
+
 .reportes-root .rp-kpi {
   border: 1px solid var(--rp-line);
   border-radius: 12px;
@@ -837,6 +891,191 @@
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.reportes-root .rp-etapas {
+  margin-top: 16px;
+  min-height: 0;
+}
+
+.reportes-root .rp-etapas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.reportes-root .rp-etapas-head h3 {
+  margin: 0;
+}
+
+.reportes-root .rp-etapas-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-etapas-leyenda span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reportes-root .rp-etapas-leyenda i,
+.reportes-root .rp-seg-tiempo,
+.reportes-root .rp-seg-atrasada,
+.reportes-root .rp-seg-cerrada {
+  display: inline-block;
+}
+
+.reportes-root .rp-etapas-leyenda i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.reportes-root .rp-etapas-regla {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-etapa-fila {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 170px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.reportes-root .rp-etapa-nombre,
+.reportes-root .rp-etapa-resumen {
+  font-size: 13px;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-etapa-resumen {
+  text-align: right;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-etapa-barra {
+  display: flex;
+  height: 28px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.reportes-root .rp-etapa-barra span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  color: #06241c;
+}
+
+.reportes-root .rp-seg-tiempo { background: #2ee6a8; }
+.reportes-root .rp-seg-riesgo { background: #e6c84a; }
+.reportes-root .rp-seg-atrasada { background: #f07167; }
+.reportes-root .rp-etapa-barra .rp-seg-atrasada { color: #fff; }
+.reportes-root .rp-seg-cerrada { background: #8aa89c; }
+
+.reportes-root .rp-ciclo {
+  margin-top: 16px;
+}
+
+.reportes-root .rp-ciclo h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--rp-text);
+}
+
+.reportes-root .rp-ciclo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reportes-root .rp-ciclo-card {
+  min-height: 0;
+}
+
+.reportes-root .rp-histo {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 150px;
+  margin-top: 22px;
+}
+
+.reportes-root .rp-histo-limite {
+  position: absolute;
+  top: 0;
+  bottom: 16px;
+  border-left: 1px dashed #f3b3ad;
+  pointer-events: none;
+}
+
+.reportes-root .rp-histo-limite span {
+  position: absolute;
+  top: -16px;
+  left: 4px;
+  font-size: 10px;
+  color: #f3b3ad;
+  white-space: nowrap;
+}
+
+.reportes-root .rp-histo-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+}
+
+.reportes-root .rp-histo-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.reportes-root .rp-histo-track div {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+}
+
+.reportes-root .rp-histo-col > span {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--rp-muted);
+}
+
+.reportes-root .rp-ciclo-pie,
+.reportes-root .rp-ciclo-vacio {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--rp-muted);
+}
+
+@media (max-width: 900px) {
+  .reportes-root .rp-ciclo-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .reportes-root .rp-chart-card-head {
