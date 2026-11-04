@@ -1,3 +1,5 @@
+import { leerEleccionRuta, leerRutaGuardada } from './route-choice';
+
 export function mapConversacion(row) {
   return {
     idConversacion: row.id_conversacion,
@@ -8,10 +10,14 @@ export function mapConversacion(row) {
 }
 
 export function mapMensaje(row) {
+  const modoRuta = leerRutaGuardada(row.contenido);
+  const { texto, elegirRuta } = leerEleccionRuta(row.contenido);
   return {
     idHistorial: row.id_historial,
     tipo: row.rol === 'assistant' ? 'ia' : 'usuario',
-    texto: row.contenido,
+    texto,
+    elegirRuta,
+    modoRuta,
     estado: row.estado,
     createdAt: row.created_at,
   };
@@ -44,6 +50,17 @@ export async function getConversacionForUser(supabase, idConversacion, idUsuario
     .eq('id_conversacion', idConversacion)
     .eq('id_usuario', idUsuario)
     .eq('esta_activa', true)
+    .maybeSingle();
+}
+
+export async function updateTituloConversacion(supabase, idConversacion, idUsuario, titulo) {
+  return supabase
+    .from('mateo_conversacion')
+    .update({ titulo })
+    .eq('id_conversacion', idConversacion)
+    .eq('id_usuario', idUsuario)
+    .eq('esta_activa', true)
+    .select('id_conversacion, titulo, created_at, updated_at')
     .maybeSingle();
 }
 

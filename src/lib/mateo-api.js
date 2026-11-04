@@ -46,6 +46,15 @@ export async function fetchMensajes(accessToken, idConversacion) {
   return data.mensajes ?? [];
 }
 
+export async function actualizarTitulo(accessToken, idConversacion, titulo) {
+  const response = await fetch(`/api/mateo/conversaciones/${idConversacion}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ titulo }),
+  });
+  return parseResponse(response);
+}
+
 export async function deleteConversacion(accessToken, idConversacion) {
   const response = await fetch(`/api/mateo/conversaciones/${idConversacion}`, {
     method: 'DELETE',

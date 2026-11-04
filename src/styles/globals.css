@@ -1568,6 +1568,91 @@ a.polaria-topbar-btn--mateo {
   margin: 0;
 }
 
+.route-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: min(92vw, 640px);
+}
+
+.route-choice--inline {
+  max-width: 100%;
+  margin-top: 12px;
+}
+
+.route-choice__btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 4.25rem;
+  padding: 0.9rem 1rem;
+  background: var(--t08);
+  border: 1px solid var(--t20);
+  border-radius: 1.15rem;
+  color: var(--w);
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.route-choice__btn:hover:not(:disabled) {
+  background: var(--t20);
+  border-color: var(--teal);
+  box-shadow: 0 0 32px var(--teal-glow);
+  transform: translateY(-1px);
+}
+
+.route-choice__btn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.route-choice__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.route-choice__num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border-radius: 0.7rem;
+  border: 1px solid var(--t20);
+  background: linear-gradient(135deg, var(--t20) 0%, rgba(0, 85, 200, 0.12) 100%);
+  color: var(--teal);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.route-choice__btn:hover:not(:disabled) .route-choice__num {
+  border-color: var(--teal);
+  background: var(--t08);
+}
+
+.route-choice__title {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.975rem;
+  font-weight: 600;
+  color: var(--w);
+  line-height: 1.3;
+}
+
+.message-col:has(.route-choice) {
+  max-width: 100%;
+  flex: 1;
+}
+
 /* Chat Area */
 .chat {
   flex: 1;
@@ -2541,6 +2626,15 @@ footer.composer .composer-send:disabled {
   .action-btn {
     min-height: 0;
     padding: 1rem 1rem 1.1rem;
+  }
+
+  .route-choice {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .route-choice__btn {
+    min-height: 0;
   }
 
   footer.composer {

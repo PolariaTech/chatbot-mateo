@@ -8,70 +8,10 @@ import { useAuth } from '../hooks/useAuth';
 import LoginForm from '../components/LoginForm';
 import { useChat } from '../hooks/useChat';
 import FormattedMessage from '../components/FormattedMessage';
+import RouteChoice from '../components/RouteChoice';
 import EmbedPanel, { extractFirstUrl } from '../components/EmbedPanel';
 import { registerEmbedUrl, releaseEmbedUrl } from '../lib/embed-registry';
 import { getDisplayInitial, getDisplayName } from '../lib/display-name';
-
-function OutlineIcon({ children }) {
-  return (
-    <svg
-      className="action-btn__icon"
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
-
-function IconInventario() {
-  return (
-    <OutlineIcon>
-      <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
-      <path d="M12 22V12" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-    </OutlineIcon>
-  );
-}
-
-function IconNegocio() {
-  return (
-    <OutlineIcon>
-      <path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" />
-      <path d="M20 2v4" />
-      <path d="M22 4h-4" />
-      <circle cx="4" cy="20" r="2" />
-    </OutlineIcon>
-  );
-}
-
-function IconInformes() {
-  return (
-    <OutlineIcon>
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M8 18v-2" />
-      <path d="M12 18v-4" />
-      <path d="M16 18v-6" />
-    </OutlineIcon>
-  );
-}
-
-function IconUtilidades() {
-  return (
-    <OutlineIcon>
-      <path d="M16 7h6v6" />
-      <path d="m22 7-8.5 8.5-5-5L2 17" />
-    </OutlineIcon>
-  );
-}
 
 function SidebarToggleIcon({ size = 16 }) {
   return (
@@ -263,9 +203,6 @@ export default function Home() {
     nuevoChat();
     closeEmbed();
     lastAutoEmbedRef.current = null;
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
   };
 
   const handleMostrarInicio = () => {
@@ -299,28 +236,7 @@ export default function Home() {
     ? (user.email?.split('@')[1] || user.codigoEmpresa || 'polaria.tech')
     : '';
 
-  const WELCOME_CARDS = [
-    {
-      icon: IconInventario,
-      title: 'Consulta Instantánea de Inventarios',
-      description: 'Información precisa y actualizada para decisiones rápidas.',
-    },
-    {
-      icon: IconNegocio,
-      title: 'Conocimiento y Gestión del Negocio',
-      description: 'Insights diarios para una administración con visión de futuro.',
-    },
-    {
-      icon: IconInformes,
-      title: 'Disponibilidad Total de Informes',
-      description: 'Acceso inmediato a informes detallados y listos para la toma de decisiones.',
-    },
-    {
-      icon: IconUtilidades,
-      title: 'Seguimiento de Utilidades en Tiempo Real',
-      description: 'Visualiza márgenes, costos y rentabilidad con datos consolidados al instante.',
-    },
-  ];
+  const esperaEleccion = showWelcome || Boolean(messages.at(-1)?.elegirRuta);
 
   if (!isReady) {
     return (
@@ -478,26 +394,12 @@ export default function Home() {
                   'Hola'
                 )}
               </h1>
-              <p className="welcome-hero__subtitle">¿En qué puedo ayudarte hoy?</p>
+              <p className="welcome-hero__subtitle">
+                Soy Mateo. Elige Ventas o Pedidos, o escribe tu pregunta.
+              </p>
             </div>
 
-            <p className="welcome-description">
-              Soy Mateo. Te ayudo a ver ventas, compras, márgenes e inventario por producto, y el estado de tus facturas.
-            </p>
-
-            <div className="action-grid">
-              {WELCOME_CARDS.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="action-btn">
-                  <span className="action-btn__icon-wrap">
-                    <Icon />
-                  </span>
-                  <div className="action-btn__content">
-                    <h3>{title}</h3>
-                    <p>{description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <RouteChoice disabled={isSending} onElegir={enviarMensaje} />
           </section>
         )}
 
@@ -523,6 +425,12 @@ export default function Home() {
                         <time className="message-time" dateTime={msg.createdAt}>
                           {formatoHora(msg.createdAt)}
                         </time>
+                      )}
+                      {msg.elegirRuta && index === messages.length - 1 && (
+                        <RouteChoice
+                          disabled={isSending}
+                          onElegir={enviarMensaje}
+                        />
                       )}
                     </div>
                   </>
@@ -553,6 +461,7 @@ export default function Home() {
           </div>
         )}
 
+        {!esperaEleccion && (
         <footer className="composer">
           <div className="composer-inner">
             <button className="composer-icon-btn" type="button" aria-label="Adjuntar archivo">
@@ -604,6 +513,7 @@ export default function Home() {
             </button>
           </div>
         </footer>
+        )}
       </main>
 
       {hasEmbed && (

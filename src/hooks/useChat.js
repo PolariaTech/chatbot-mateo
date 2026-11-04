@@ -1,61 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  armarPayloadChat,
+  contenidoConRuta,
+  handleSessionInvalid,
+  leerRespuestaAgente,
+  persistAssistantMessage,
+  persistUserMessage,
+  recordarModo,
+  resolveWebhookUrl,
+  sortConversaciones,
+  tituloDeTurno,
+  upsertConversacion,
+} from '../lib/chat-session';
 import * as mateoApi from '../lib/mateo-api';
-
-const WEBHOOK_URL = 'https://polariatech.app.n8n.cloud/webhook/chat';
-const WEBHOOK_URL_CHATPOLARIA = 'https://polariatech.app.n8n.cloud/webhook/polaria';
-
-function resolveWebhookUrl(codigoEmpresa) {
-  return String(codigoEmpresa || '').toUpperCase() === 'Y9IHZ' ? WEBHOOK_URL_CHATPOLARIA : WEBHOOK_URL;
-}
-
-function sortConversaciones(items) {
-  return [...items].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-}
-
-function upsertConversacion(items, conversacion) {
-  const rest = items.filter((item) => item.idConversacion !== conversacion.idConversacion);
-  return sortConversaciones([conversacion, ...rest]);
-}
-
-async function persistUserMessage({ canPersist, accessToken, ensureConversacion, texto }) {
-  if (!canPersist) return null;
-
-  const conversacionId = await ensureConversacion();
-  await mateoApi.saveMensaje(accessToken, conversacionId, {
-    rol: 'user',
-    contenido: texto,
-  });
-  return conversacionId;
-}
-
-async function persistAssistantMessage({
-  canPersist,
-  accessToken,
-  conversacionId,
-  contenido,
-  tokensUsados,
-  estado,
-  refreshConversaciones,
-}) {
-  if (!canPersist || !conversacionId) return;
-
-  await mateoApi.saveMensaje(accessToken, conversacionId, {
-    rol: 'assistant',
-    contenido,
-    tokensUsados,
-    estado,
-  });
-  await refreshConversaciones();
-}
-
-function handleSessionInvalid(error, onSessionInvalid) {
-  if (!error?.isSessionInvalid) return false;
-
-  onSessionInvalid?.();
-  return true;
-}
+import { esEleccionRuta, modoDesdeHistorial, modoDesdeTexto } from '../lib/route-choice';
 
 export function useChat({
   user,
@@ -76,6 +34,10 @@ export function useChat({
 
   const canPersist = Boolean(accessToken);
   const onSessionInvalidRef = useRef(onSessionInvalid);
+  const conversacionExistenteRef = useRef(false);
+  const rutaConfirmadaRef = useRef(false);
+  const modoRutaRef = useRef('');
+  const tituloAplicadoRef = useRef(false);
 
   useEffect(() => {
     onSessionInvalidRef.current = onSessionInvalid;
@@ -119,14 +81,22 @@ export function useChat({
   }, [accessToken, activeConversacionId, user?.codigoEmpresa]);
 
   const nuevoChat = () => {
+    conversacionExistenteRef.current = false;
+    rutaConfirmadaRef.current = false;
+    modoRutaRef.current = '';
+    tituloAplicadoRef.current = false;
     setMessages([]);
     setActiveConversacionId(null);
     setInputValue('');
-    setShowWelcome(false);
+    setShowWelcome(true);
     setPersistError(null);
   };
 
   const mostrarInicio = () => {
+    conversacionExistenteRef.current = false;
+    rutaConfirmadaRef.current = false;
+    modoRutaRef.current = '';
+    tituloAplicadoRef.current = false;
     setMessages([]);
     setActiveConversacionId(null);
     setInputValue('');
@@ -138,12 +108,17 @@ export function useChat({
     async (idConversacion) => {
       if (!canPersist) return;
 
+      conversacionExistenteRef.current = true;
+      tituloAplicadoRef.current = false;
       setActiveConversacionId(idConversacion);
       setShowWelcome(false);
       setIsLoadingMensajes(true);
 
       try {
         const mensajes = await mateoApi.fetchMensajes(accessToken, idConversacion);
+        const modo = modoDesdeHistorial(mensajes);
+        modoRutaRef.current = modo;
+        rutaConfirmadaRef.current = modo === 'VENTAS' || modo === 'PEDIDOS';
         setMessages(mensajes);
         setPersistError(null);
       } catch (error) {
@@ -173,6 +148,10 @@ export function useChat({
         setPersistError(null);
 
         if (activeConversacionId === idConversacion) {
+          conversacionExistenteRef.current = false;
+          rutaConfirmadaRef.current = false;
+          modoRutaRef.current = '';
+          tituloAplicadoRef.current = false;
           setMessages([]);
           setActiveConversacionId(null);
           setInputValue('');
@@ -186,6 +165,20 @@ export function useChat({
     [accessToken, activeConversacionId, canPersist],
   );
 
+  const aplicarTitulo = async (idConversacion, titulo) => {
+    if (tituloAplicadoRef.current || !canPersist || !idConversacion) return;
+
+    try {
+      const data = await mateoApi.actualizarTitulo(accessToken, idConversacion, titulo);
+      tituloAplicadoRef.current = true;
+      if (data?.conversacion) {
+        setConversaciones((prev) => upsertConversacion(prev, data.conversacion));
+      }
+    } catch (error) {
+      if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
+    }
+  };
+
   const enviarMensaje = async (textoOverride) => {
     const texto = (typeof textoOverride === 'string' ? textoOverride : inputValue).trim();
     if (!texto || isSending) return;
@@ -193,6 +186,23 @@ export function useChat({
     if (!isAuthenticated || !user) {
       onRequireLogin?.();
       return;
+    }
+
+    const elegido = modoDesdeTexto(texto);
+    const hayPreguntaPrevia = messages.some(
+      (mensaje) => mensaje.tipo === 'usuario' && !esEleccionRuta(mensaje.texto),
+    );
+    const soloRuta = Boolean(elegido) && !conversacionExistenteRef.current && !hayPreguntaPrevia;
+    if (elegido && modoRutaRef.current !== 'VENTAS' && modoRutaRef.current !== 'PEDIDOS') {
+      modoRutaRef.current = elegido;
+      rutaConfirmadaRef.current = true;
+    } else {
+      modoRutaRef.current = recordarModo(
+        modoRutaRef.current,
+        messages,
+        conversacionExistenteRef.current,
+      );
+      rutaConfirmadaRef.current = modoRutaRef.current === 'VENTAS' || modoRutaRef.current === 'PEDIDOS';
     }
 
     setShowWelcome(false);
@@ -212,6 +222,14 @@ export function useChat({
         ensureConversacion,
         texto,
       });
+      if (esEleccionRuta(texto) && !conversacionExistenteRef.current) {
+        rutaConfirmadaRef.current = true;
+      }
+      const rutaLista = rutaConfirmadaRef.current || conversacionExistenteRef.current;
+      const titulo = tituloDeTurno(texto, messages);
+      if (rutaLista && titulo) {
+        await aplicarTitulo(conversacionId, titulo);
+      }
       setPersistError(null);
     } catch (error) {
       if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
@@ -219,16 +237,14 @@ export function useChat({
     }
 
     try {
-      const payload = {
-        message: texto,
-        idConversacion: conversacionId,
-        usuario: {
-          username: user.username,
-          idUsuario: user.idUsuario,
-          codigoEmpresa: user.codigoEmpresa,
-          nombre: user.nombre,
-        },
-      };
+      const payload = armarPayloadChat({
+        texto,
+        conversacionId,
+        existente: conversacionExistenteRef.current,
+        modo: modoRutaRef.current,
+        soloRuta,
+        user,
+      });
 
       const response = await fetch(resolveWebhookUrl(user.codigoEmpresa), {
         method: 'POST',
@@ -237,24 +253,20 @@ export function useChat({
       });
 
       const data = await response.json();
-      const responseBody = Array.isArray(data) ? data[0] : data;
-      const respuestaIA =
-        responseBody?.output ??
-        responseBody?.reply ??
-        data.output ??
-        data.reply ??
-        JSON.stringify(data);
-      const tokensUsados = data.tokensUsados ?? data.tokens_usados ?? null;
+      const leido = leerRespuestaAgente(data);
 
-      setMessages([...nuevosMensajes, { tipo: 'ia', texto: respuestaIA, createdAt: new Date().toISOString() }]);
+      setMessages([
+        ...nuevosMensajes,
+        { tipo: 'ia', texto: leido.texto, elegirRuta: leido.elegirRuta, createdAt: new Date().toISOString() },
+      ]);
 
       try {
         await persistAssistantMessage({
           canPersist,
           accessToken,
           conversacionId,
-          contenido: respuestaIA,
-          tokensUsados,
+          contenido: contenidoConRuta(leido.texto, leido.elegirRuta, modoRutaRef.current),
+          tokensUsados: leido.tokensUsados,
           estado: response.ok ? 'ok' : 'error',
           refreshConversaciones,
         });
