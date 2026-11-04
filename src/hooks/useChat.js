@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   armarPayloadChat,
+  atenderErrorAlGuardarTitulo,
   contenidoConRuta,
+  guardarTitulo,
   handleSessionInvalid,
   leerRespuestaAgente,
   persistAssistantMessage,
@@ -166,12 +168,17 @@ export function useChat({
   );
 
   const aplicarTitulo = async (idConversacion, titulo) => {
-    if (tituloAplicadoRef.current || !canPersist || !idConversacion) return;
+    const resultado = await guardarTitulo({
+      yaAplicado: tituloAplicadoRef.current,
+      puedePersistir: canPersist,
+      idConversacion,
+      actualizar: () => mateoApi.actualizarTitulo(accessToken, idConversacion, titulo),
+    });
+    if (!resultado.aplicado) return;
 
-    const data = await mateoApi.actualizarTitulo(accessToken, idConversacion, titulo);
     tituloAplicadoRef.current = true;
-    if (data?.conversacion) {
-      setConversaciones((prev) => upsertConversacion(prev, data.conversacion));
+    if (resultado.respuesta?.conversacion) {
+      setConversaciones((prev) => upsertConversacion(prev, resultado.respuesta.conversacion));
     }
   };
 
@@ -228,8 +235,9 @@ export function useChat({
       }
       setPersistError(null);
     } catch (error) {
-      if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
-      setPersistError(error.message || 'No se pudo guardar el mensaje en Supabase.');
+      const atencion = atenderErrorAlGuardarTitulo(error, () => onSessionInvalidRef.current?.());
+      if (atencion.cortarEnvio) return;
+      setPersistError(atencion.mensaje);
     }
 
     try {

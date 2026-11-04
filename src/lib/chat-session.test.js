@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { armarPayloadChat, leerRespuestaAgente, tituloDeTurno } from './chat-session.js'
+import {
+  armarPayloadChat,
+  atenderErrorAlGuardarTitulo,
+  guardarTitulo,
+  leerRespuestaAgente,
+  tituloDeTurno,
+} from './chat-session.js'
 
 const usuario = {
   username: 'mateo',
@@ -36,6 +42,60 @@ describe('armarPayloadChat', () => {
 
     assert.equal(payload.conversacionExistente, false)
     assert.equal(payload.modo, 'PEDIDOS')
+  })
+})
+
+describe('guardarTitulo', () => {
+  it('no marca el título si la actualización rechaza la sesión', async () => {
+    await assert.rejects(
+      () => guardarTitulo({
+        yaAplicado: false,
+        puedePersistir: true,
+        idConversacion: 'conv-1',
+        actualizar: async () => {
+          const error = new Error('Sesión inválida.')
+          error.isSessionInvalid = true
+          throw error
+        },
+      }),
+      (error) => {
+        const atencion = atenderErrorAlGuardarTitulo(error, () => {})
+        assert.equal(atencion.cortarEnvio, true)
+        assert.equal(atencion.mensaje, null)
+        return true
+      },
+    )
+  })
+
+  it('propaga otro error sin marcar el título como aplicado', async () => {
+    await assert.rejects(
+      () => guardarTitulo({
+        yaAplicado: false,
+        puedePersistir: true,
+        idConversacion: 'conv-1',
+        actualizar: async () => {
+          throw new Error('No se pudo actualizar el título.')
+        },
+      }),
+      (error) => {
+        const atencion = atenderErrorAlGuardarTitulo(error, () => {})
+        assert.equal(atencion.cortarEnvio, false)
+        assert.equal(atencion.mensaje, 'No se pudo actualizar el título.')
+        return true
+      },
+    )
+  })
+
+  it('marca el título solo cuando la actualización responde', async () => {
+    const resultado = await guardarTitulo({
+      yaAplicado: false,
+      puedePersistir: true,
+      idConversacion: 'conv-1',
+      actualizar: async () => ({ conversacion: { idConversacion: 'conv-1' } }),
+    })
+
+    assert.equal(resultado.aplicado, true)
+    assert.equal(resultado.respuesta.conversacion.idConversacion, 'conv-1')
   })
 })
 

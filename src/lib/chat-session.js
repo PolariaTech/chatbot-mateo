@@ -57,6 +57,26 @@ export function handleSessionInvalid(error, onSessionInvalid) {
   return true;
 }
 
+export async function guardarTitulo({ yaAplicado, puedePersistir, idConversacion, actualizar }) {
+  if (yaAplicado || !puedePersistir || !idConversacion) {
+    return { aplicado: Boolean(yaAplicado), respuesta: null };
+  }
+
+  const respuesta = await actualizar();
+  return { aplicado: true, respuesta };
+}
+
+export function atenderErrorAlGuardarTitulo(error, onSessionInvalid) {
+  if (handleSessionInvalid(error, onSessionInvalid)) {
+    return { cortarEnvio: true, mensaje: null };
+  }
+
+  return {
+    cortarEnvio: false,
+    mensaje: error?.message || 'No se pudo guardar el mensaje en Supabase.',
+  };
+}
+
 export function recordarModo(modoActual, mensajes, existente) {
   if (modoActual === 'VENTAS' || modoActual === 'PEDIDOS') return modoActual;
   if (!existente) return modoActual || '';
