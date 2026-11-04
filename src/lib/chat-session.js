@@ -1,5 +1,5 @@
-import * as mateoApi from './mateo-api';
-import { esEleccionRuta, leerEleccionRuta, marcarEleccionRuta, marcarRuta, modoDesdeHistorial } from './route-choice';
+import * as mateoApi from './mateo-api.js';
+import { esEleccionRuta, leerEleccionRuta, marcarEleccionRuta, marcarRuta, modoDesdeHistorial } from './route-choice.js';
 
 const WEBHOOK_URL = 'https://polariatech.app.n8n.cloud/webhook/chat';
 const WEBHOOK_URL_CHATPOLARIA = 'https://polariatech.app.n8n.cloud/webhook/polaria';
