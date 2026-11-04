@@ -168,14 +168,10 @@ export function useChat({
   const aplicarTitulo = async (idConversacion, titulo) => {
     if (tituloAplicadoRef.current || !canPersist || !idConversacion) return;
 
-    try {
-      const data = await mateoApi.actualizarTitulo(accessToken, idConversacion, titulo);
-      tituloAplicadoRef.current = true;
-      if (data?.conversacion) {
-        setConversaciones((prev) => upsertConversacion(prev, data.conversacion));
-      }
-    } catch (error) {
-      if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
+    const data = await mateoApi.actualizarTitulo(accessToken, idConversacion, titulo);
+    tituloAplicadoRef.current = true;
+    if (data?.conversacion) {
+      setConversaciones((prev) => upsertConversacion(prev, data.conversacion));
     }
   };
 

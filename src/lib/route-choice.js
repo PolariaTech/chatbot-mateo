@@ -56,6 +56,10 @@ export function esTituloDeRuta(titulo) {
   return !String(titulo || '').trim() || esEleccionRuta(titulo);
 }
 
+export function esCuerpoDeSolicitud(body) {
+  return Boolean(body) && typeof body === 'object' && !Array.isArray(body);
+}
+
 export function tituloDesdePregunta(texto) {
   const limpio = String(texto || '').replace(/\s+/g, ' ').trim();
   if (limpio.length <= 80) return limpio;

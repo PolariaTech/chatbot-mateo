@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  esCuerpoDeSolicitud,
   esEleccionRuta,
   leerEleccionRuta,
   marcarRuta,
@@ -19,6 +20,15 @@ describe('modoDesdeTexto', () => {
     assert.equal(esEleccionRuta('2'), true)
     assert.equal(modoDesdeTexto('2'), 'PEDIDOS')
     assert.equal(modoDesdeTexto('ordenes de venta'), 'PEDIDOS')
+  })
+})
+
+describe('esCuerpoDeSolicitud', () => {
+  it('acepta un objeto y rechaza null, texto y arreglos', () => {
+    assert.equal(esCuerpoDeSolicitud({ titulo: 'Ventas de ayer' }), true)
+    assert.equal(esCuerpoDeSolicitud(null), false)
+    assert.equal(esCuerpoDeSolicitud('Ventas'), false)
+    assert.equal(esCuerpoDeSolicitud(['Ventas']), false)
   })
 })
 

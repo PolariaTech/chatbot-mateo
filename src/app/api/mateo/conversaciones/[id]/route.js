@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../../lib/mateo-auth';
 import { deactivateConversacion, getConversacionForUser, mapConversacion, updateTituloConversacion } from '../../../../../lib/mateo-db';
-import { esEleccionRuta, esTituloDeRuta, tituloDesdePregunta } from '../../../../../lib/route-choice';
+import { esCuerpoDeSolicitud, esEleccionRuta, esTituloDeRuta, tituloDesdePregunta } from '../../../../../lib/route-choice';
 import { getSupabaseAdmin, isSupabaseConfigured } from '../../../../../lib/supabase-server';
 
 export async function PATCH(request, { params }) {
@@ -18,6 +18,10 @@ export async function PATCH(request, { params }) {
   try {
     body = await request.json();
   } catch {
+    return NextResponse.json({ error: 'Cuerpo de solicitud inválido.' }, { status: 400 });
+  }
+
+  if (!esCuerpoDeSolicitud(body)) {
     return NextResponse.json({ error: 'Cuerpo de solicitud inválido.' }, { status: 400 });
   }
 

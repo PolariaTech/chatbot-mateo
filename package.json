@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-default-type=module --test src/lib/route-choice.test.js src/lib/chat-session.test.js"
+    "test": "node --experimental-default-type=module test/run.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
