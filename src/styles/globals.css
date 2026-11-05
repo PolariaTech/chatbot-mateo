@@ -1724,6 +1724,31 @@ a.polaria-topbar-btn--mateo {
   color: var(--w);
 }
 
+.descarga-ov {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.descarga-ov__boton {
+  border: 1px solid var(--t20);
+  background: var(--t08);
+  color: var(--w);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.descarga-ov__nota {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--w50, #8aa89c);
+}
+
 .message.usuario .message-bubble {
   border-radius: 14px 14px 4px 14px;
   background: var(--t08);

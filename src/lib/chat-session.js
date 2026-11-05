@@ -1,5 +1,6 @@
 import * as mateoApi from './mateo-api.js';
 import { esEleccionRuta, leerEleccionRuta, marcarEleccionRuta, marcarRuta, modoDesdeHistorial } from './route-choice.js';
+import { leerDescargaOv, marcarDescarga } from './descarga-ov.js';
 
 const WEBHOOK_URL = 'https://polariatech.app.n8n.cloud/webhook/chat';
 const WEBHOOK_URL_CHATPOLARIA = 'https://polariatech.app.n8n.cloud/webhook/polaria';
@@ -106,16 +107,19 @@ export function leerRespuestaAgente(data) {
     ?? data.output
     ?? data.reply
     ?? JSON.stringify(data);
-  const leido = leerEleccionRuta(respuestaIA);
+  const descargado = leerDescargaOv(respuestaIA);
+  const leido = leerEleccionRuta(descargado.texto);
   return {
     texto: leido.texto,
     elegirRuta: leido.elegirRuta || responseBody?.elegirRuta === true || responseBody?.elegir_ruta === true,
+    descarga: descargado.pedido,
     tokensUsados: data.tokensUsados ?? data.tokens_usados ?? null,
   };
 }
 
-export function contenidoConRuta(texto, elegirRuta, modo) {
-  return marcarRuta(elegirRuta ? marcarEleccionRuta(texto) : texto, modo);
+export function contenidoConRuta(texto, elegirRuta, modo, descarga) {
+  const conRuta = marcarRuta(elegirRuta ? marcarEleccionRuta(texto) : texto, modo);
+  return marcarDescarga(conRuta, descarga);
 }
 
 export function tituloDeTurno(texto, mensajes) {

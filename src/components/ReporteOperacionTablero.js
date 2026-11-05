@@ -2,6 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
+import {
+  ESTADOS_KPI,
+  ETAPAS_CICLO,
+  ETAPAS_GRAFICO,
+  SERIES_ABIERTAS,
+  SERIES_TENDENCIA,
+  filasPorEstado,
+  puntoTendencia,
+} from '../lib/ordenesventa-estados';
 
 const DINERO = { importe: true };
 
@@ -68,25 +77,10 @@ const COLUMNAS_CONFIRMACION = [
   ['ordenes', 'Órdenes'],
 ];
 
-const ESTADOS_KPI = [
-  ['por_confirmar', 'Por confirmar', 'verde'],
-  ['confirmada', 'Confirmadas', 'cian'],
-  ['alistamiento', 'En alistamiento', 'rosa'],
-  ['alistada', 'Alistadas', 'gris'],
-];
-
 // Mismo 1 que el bloque "etapa" de sql/get_operacion_ordenes.sql.
 // Hasta 1 día entre la fecha de pedido y hoy: en tiempo. Más de 1 día: atrasada.
 // Luego este valor sale de una tabla de parámetros.
 const SLA_DIAS = 1;
-
-// Mismos minutos que el bloque "ciclo" de sql/get_operacion_ordenes.sql.
-// Luego estos tres límites salen de una tabla de parámetros.
-const LIMITES_CICLO = [
-  { clave: '0', titulo: 'Tiempo en Por confirmar', limite: 60, limiteTexto: '60 min' },
-  { clave: '1', titulo: 'Tiempo en Confirmada', limite: 60, limiteTexto: '60 min' },
-  { clave: '2', titulo: 'Tiempo en Alistamiento', limite: 120, limiteTexto: '2 h' },
-];
 
 const CUBETAS_CICLO = [
   ['015', '15m', 15],
@@ -98,13 +92,6 @@ const CUBETAS_CICLO = [
   ['480', '8h', 480],
   ['720', '12h', 720],
   ['721', '+', 721],
-];
-
-const ETAPAS_GRAFICO = [
-  ['0', 'Por confirmar', false],
-  ['1', 'Confirmada', false],
-  ['2', 'Alistamiento', false],
-  ['3', 'Alistada', true],
 ];
 
 const COLORES = ['#2ee6a8', '#19e3c8', '#7ee9da', '#e6c84a', '#f3b3ad', '#8aa89c', '#4cc38a', '#c9d4d4'];
@@ -232,7 +219,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
       .sort((a, b) => (aNumero(b[campo]) || 0) - (aNumero(a[campo]) || 0));
     return {
       resumen: lista.find((row) => row.seccion === 'resumen') || null,
-      estado: de('estado', 'ordenes'),
+      estado: filasPorEstado(lista.filter((row) => row.seccion === 'estado')),
       centro: de('centro'),
       producto: de('producto', 'cantidad'),
       comprador: de('comprador', 'ordenes'),
@@ -542,6 +529,7 @@ function formatoMinutos(minutos) {
 }
 
 function tonoCubeta(tope, limite) {
+  if (limite == null) return 'rp-seg-cerrada';
   if (tope > limite) return 'rp-seg-atrasada';
   if (tope > limite * 0.75) return 'rp-seg-riesgo';
   return 'rp-seg-tiempo';
@@ -555,12 +543,6 @@ const CUBETAS_RELOJ = [
   ['090', '60-90', 90],
   ['120', '90-120', 120],
   ['121', '>2 h', 121],
-];
-
-const SERIES_TENDENCIA = [
-  ['0', 'Por confirmar', '#2ee6a8', 60],
-  ['1', 'Confirmada', '#7eb6ff', 60],
-  ['2', 'Alistamiento', '#d5ddd8', 120],
 ];
 
 function TendenciaMediana({ filas }) {
@@ -580,12 +562,11 @@ function TendenciaMediana({ filas }) {
         datasets: [
           ...SERIES_TENDENCIA.map(([clave, nombre, color, limite]) => ({
             label: nombre,
-            data: dias.map((dia) => {
-              const row = filas.find((item) => item.clave === clave && item.etiqueta === dia);
-              const mediana = aNumero(row?.cantidad);
-              if (mediana == null) return null;
-              return Math.round((mediana / limite) * 1000) / 10;
-            }),
+            yAxisID: limite == null ? 'minutos' : 'y',
+            data: dias.map((dia) => puntoTendencia(
+              aNumero(filas.find((item) => item.clave === clave && item.etiqueta === dia)?.cantidad),
+              limite,
+            )),
             borderColor: color,
             backgroundColor: color,
             spanGaps: true,
@@ -614,6 +595,12 @@ function TendenciaMediana({ filas }) {
             ticks: { color: '#8aa89c', callback: (valor) => `${valor} %` },
             grid: { color: 'rgba(90, 200, 160, 0.12)' },
           },
+          minutos: {
+            position: 'right',
+            beginAtZero: true,
+            ticks: { color: '#8aa89c', callback: (valor) => `${valor} min` },
+            grid: { drawOnChartArea: false },
+          },
         },
       },
     });
@@ -635,7 +622,7 @@ function TendenciaMediana({ filas }) {
 
 function EnvejecimientoAbiertas({ filas }) {
   const cubetas = CUBETAS_RELOJ.map(([id, nombre, tope]) => {
-    const partes = SERIES_TENDENCIA.map(([clave, , , limite]) => ({
+    const partes = SERIES_ABIERTAS.map(([clave, , , limite]) => ({
       clave,
       ordenes: aNumero(filas.find((row) => row.clave === clave && row.etiqueta === id)?.ordenes) || 0,
       tono: tope > limite ? 'rp-seg-atrasada' : tope > limite * 0.75 ? 'rp-seg-riesgo' : 'rp-seg-tiempo',
@@ -700,11 +687,7 @@ function RojoPorHora({ filas }) {
 }
 
 function CicloPromedio({ filas }) {
-  const tramos = [
-    { clave: '0', nombre: 'Por confirmar', modo: 'espera', limite: 60, presupuesto: '1 h' },
-    { clave: '1', nombre: 'Confirmada', modo: 'espera', limite: 60, presupuesto: '1 h' },
-    { clave: '2', nombre: 'Alistamiento', modo: 'trabajo', limite: 120, presupuesto: '2 h' },
-  ].map((tramo) => {
+  const tramos = ETAPAS_CICLO.map((tramo) => {
     const mediana = filas.find((row) => row.clave === tramo.clave && row.etiqueta === 'mediana');
     const cumple = filas.find((row) => row.clave === tramo.clave && row.etiqueta === 'cumple');
     const ordenes = aNumero(mediana?.ordenes) || 0;
@@ -717,10 +700,10 @@ function CicloPromedio({ filas }) {
       <h3>Ciclo de vida promedio de una OV</h3>
       <div className="rp-vida">
         {tramos.map((tramo) => {
-          const razon = tramo.promedio == null ? 0 : Math.min(tramo.promedio / tramo.limite, 1);
-          const paso = tramo.promedio != null && tramo.promedio > tramo.limite;
+          const razon = tramo.promedio == null ? 0 : (tramo.limite ? Math.min(tramo.promedio / tramo.limite, 1) : 1);
+          const paso = tramo.limite != null && tramo.promedio > tramo.limite;
           return (
-            <div className="rp-vida-tramo" key={tramo.clave} style={{ flex: tramo.limite }}>
+            <div className="rp-vida-tramo" key={tramo.clave}>
               <div className="rp-vida-nombre">{`${tramo.nombre} · ${tramo.modo}`}</div>
               <div className={`rp-vida-pista${tramo.promedio == null ? ' rp-vida-vacia' : ''}`}>
                 {tramo.promedio != null && (
@@ -733,7 +716,7 @@ function CicloPromedio({ filas }) {
               <div className="rp-vida-pie">
                 {tramo.promedio == null ? 'Sin hora de salida' : `Promedio ${formatoMinutos(tramo.promedio)}`}
               </div>
-              <div className="rp-vida-presupuesto">{`Presupuesto ${tramo.presupuesto}`}</div>
+              {tramo.presupuesto ? <div className="rp-vida-presupuesto">{`Presupuesto ${tramo.presupuesto}`}</div> : null}
             </div>
           );
         })}
@@ -747,9 +730,9 @@ function CicloEtapas({ filas }) {
     <section className="rp-ciclo">
       <h2>Dónde nos estamos quedando</h2>
       <CicloPromedio filas={filas} />
-      <p className="rp-etapas-regla">Límites fijos: 60 min, 60 min y 2 h. Cada barra es el tiempo hasta salir de la etapa.</p>
+      <p className="rp-etapas-regla">Límites fijos: 60 min, 60 min y 2 h. Revisada, Despachada y Facturada van en minutos, desde la marca anterior.</p>
       <div className="rp-ciclo-grid">
-        {LIMITES_CICLO.map((etapa) => {
+        {ETAPAS_CICLO.map((etapa) => {
           const deLaEtapa = filas.filter((row) => row.clave === etapa.clave);
           const mediana = deLaEtapa.find((row) => row.etiqueta === 'mediana');
           const cumple = deLaEtapa.find((row) => row.etiqueta === 'cumple');
@@ -770,9 +753,11 @@ function CicloEtapas({ filas }) {
               {total ? (
                 <>
                   <div className="rp-histo">
-                    <div className="rp-histo-limite" style={{ left: `${((corte + 1) / CUBETAS_CICLO.length) * 100}%` }}>
-                      <span>{`Límite ${etapa.limiteTexto}`}</span>
-                    </div>
+                    {etapa.limite != null && (
+                      <div className="rp-histo-limite" style={{ left: `${((corte + 1) / CUBETAS_CICLO.length) * 100}%` }}>
+                        <span>{`Límite ${etapa.limiteTexto}`}</span>
+                      </div>
+                    )}
                     {cubetas.map((cubeta) => (
                       <div className="rp-histo-col" key={cubeta.id}>
                         <div className="rp-histo-track">
@@ -786,7 +771,7 @@ function CicloEtapas({ filas }) {
                     ))}
                   </div>
                   <p className="rp-ciclo-pie">
-                    {`Mediana ${formatoMinutos(mediana?.cantidad)} · P90 ${formatoMinutos(mediana?.importe)} · Cumple ${pct} %`}
+                    {`Mediana ${formatoMinutos(mediana?.cantidad)} · P90 ${formatoMinutos(mediana?.importe)}${etapa.limite == null ? '' : ` · Cumple ${pct} %`}`}
                   </p>
                 </>
               ) : (

@@ -122,4 +122,12 @@ describe('leerRespuestaAgente', () => {
     assert.equal(leerRespuestaAgente({ output: 'hola', elegirRuta: true }).elegirRuta, true)
     assert.equal(leerRespuestaAgente({ reply: 'hola', elegir_ruta: true }).elegirRuta, true)
   })
+
+  it('quita la marca de Excel y deja el pedido', () => {
+    const leido = leerRespuestaAgente({
+      output: 'Te dejo el archivo.\n[[DESCARGAR_OV inicio=2026-10-01 fin=2026-10-31 columnas=numero,estado]]',
+    })
+    assert.equal(leido.texto, 'Te dejo el archivo.')
+    assert.deepEqual(leido.descarga.columnas, ['numero', 'estado'])
+  })
 })

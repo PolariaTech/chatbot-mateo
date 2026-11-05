@@ -16,6 +16,7 @@ import {
 } from '../lib/chat-session';
 import * as mateoApi from '../lib/mateo-api';
 import { esEleccionRuta, modoDesdeHistorial, modoDesdeTexto } from '../lib/route-choice';
+import { pedidoDesdeConversacion } from '../lib/descarga-ov';
 
 export function useChat({
   user,
@@ -258,10 +259,11 @@ export function useChat({
 
       const data = await response.json();
       const leido = leerRespuestaAgente(data);
+      const descarga = leido.descarga || pedidoDesdeConversacion(texto, messages);
 
       setMessages([
         ...nuevosMensajes,
-        { tipo: 'ia', texto: leido.texto, elegirRuta: leido.elegirRuta, createdAt: new Date().toISOString() },
+        { tipo: 'ia', texto: leido.texto, elegirRuta: leido.elegirRuta, descarga, createdAt: new Date().toISOString() },
       ]);
 
       try {
@@ -269,7 +271,7 @@ export function useChat({
           canPersist,
           accessToken,
           conversacionId,
-          contenido: contenidoConRuta(leido.texto, leido.elegirRuta, modoRutaRef.current),
+          contenido: contenidoConRuta(leido.texto, leido.elegirRuta, modoRutaRef.current, descarga),
           tokensUsados: leido.tokensUsados,
           estado: response.ok ? 'ok' : 'error',
           refreshConversaciones,

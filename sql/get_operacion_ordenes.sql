@@ -115,9 +115,45 @@ AS $$
       ) AS confirmo,
       MIN(e.created_at) FILTER (
         WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'alistamiento'
-      ) AS alisto
+      ) AS alisto,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'alistada'
+      ) AS alisto_fin,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'revisada'
+      ) AS reviso,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'despachada'
+      ) AS despacho,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'facturada'
+      ) AS facturo
     FROM eventos e
     GROUP BY e.id_orden_venta
+  ),
+  tramos_cierre AS MATERIALIZED (
+    -- 3 Alistada, 4 Revisada, 5 Despachada, 6 Facturada.
+    -- Minutos desde la marca anterior hasta quedar en ese estado. Sin límite.
+    SELECT
+      cierre.etapa,
+      EXTRACT(EPOCH FROM (cierre.llego - previa.marca)) / 60.0 AS minutos,
+      (cierre.llego AT TIME ZONE 'America/Cancun')::date AS fecha
+    FROM marcas m
+    CROSS JOIN LATERAL (
+      VALUES
+        ('3'::text, m.alisto_fin),
+        ('4'::text, m.reviso),
+        ('5'::text, m.despacho),
+        ('6'::text, m.facturo)
+    ) AS cierre(etapa, llego)
+    CROSS JOIN LATERAL (
+      SELECT MAX(marca) AS marca
+      FROM (
+        VALUES (m.entro), (m.confirmo), (m.alisto), (m.alisto_fin), (m.reviso), (m.despacho)
+      ) AS previas(marca)
+      WHERE marca IS NOT NULL AND cierre.llego IS NOT NULL AND marca < cierre.llego
+    ) AS previa
+    WHERE cierre.llego IS NOT NULL AND previa.marca IS NOT NULL
   ),
   duraciones AS MATERIALIZED (
     -- Límites quemados, en minutos: Por confirmar 60, Confirmada 60, Alistamiento 120.
@@ -141,6 +177,9 @@ AS $$
       AND p.estado = 'alistada'
       AND p.estado_desde IS NOT NULL
       AND p.estado_desde >= m.alisto
+    UNION ALL
+    SELECT t.etapa, t.minutos
+    FROM tramos_cierre t
   )
   SELECT
     CASE
@@ -162,6 +201,9 @@ AS $$
           WHEN 'confirmada' THEN 'Confirmada'
           WHEN 'alistamiento' THEN 'Alistamiento'
           WHEN 'alistada' THEN 'Alistada'
+          WHEN 'revisada' THEN 'Revisada'
+          WHEN 'despachada' THEN 'Despachada'
+          WHEN 'facturada' THEN 'Facturada'
           ELSE p.estado
         END
       WHEN GROUPING(p.centro) = 0 THEN p.centro
@@ -269,6 +311,9 @@ AS $$
         WHEN accion = 'creacion' THEN 'ingreso'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'confirmada' THEN 'confirmada'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'alistamiento' THEN 'alistamiento'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'revisada' THEN 'revisada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'despachada' THEN 'despachada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'facturada' THEN 'facturada'
         WHEN accion = 'cambio_estado' THEN 'otro_estado'
         WHEN tipo = 'impresion_pdf_auto' THEN 'impresion_auto'
         WHEN tipo = 'impresion_pdf' THEN 'impresion'
@@ -280,6 +325,9 @@ AS $$
         WHEN accion = 'creacion' THEN 'Pedido ingresado'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'confirmada' THEN 'Pasó a confirmada'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'alistamiento' THEN 'Pasó a alistamiento'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'revisada' THEN 'Pasó a revisada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'despachada' THEN 'Pasó a despachada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'facturada' THEN 'Pasó a facturada'
         WHEN accion = 'cambio_estado' THEN 'Cambió de estado'
         WHEN tipo = 'impresion_pdf_auto' THEN 'Impresión automática'
         WHEN tipo = 'impresion_pdf' THEN 'Impresión'
@@ -347,7 +395,7 @@ AS $$
   -- SLA provisional. El 1 está quemado a propósito.
   -- Una orden abierta está en tiempo si hoy, en America/Cancun, menos la fecha
   -- de pedido es de 1 día como máximo. Si la diferencia es mayor, está atrasada.
-  -- Las alistadas salen como cerradas y no se parten.
+  -- Alistada, revisada, despachada y facturada salen como cerradas y no se parten.
   -- Mantener este 1 igual que SLA_DIAS en src/components/ReporteOperacionTablero.js.
   -- El siguiente paso es leer ese día desde una tabla de parámetros.
   UNION ALL
@@ -358,9 +406,12 @@ AS $$
       WHEN 'confirmada' THEN '1'
       WHEN 'alistamiento' THEN '2'
       WHEN 'alistada' THEN '3'
+      WHEN 'revisada' THEN '4'
+      WHEN 'despachada' THEN '5'
+      WHEN 'facturada' THEN '6'
     END,
     CASE
-      WHEN p.estado = 'alistada' THEN 'cerrada'
+      WHEN p.estado IN ('alistada', 'revisada', 'despachada', 'facturada') THEN 'cerrada'
       WHEN (timezone('America/Cancun', now()))::date - p.fecha <= 1 THEN 'en_tiempo'
       ELSE 'atrasada'
     END,
@@ -368,7 +419,7 @@ AS $$
     0::numeric,
     0::numeric
   FROM por_orden p
-  WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada')
+  WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada', 'revisada', 'despachada', 'facturada')
   GROUP BY 2, 3
   UNION ALL
   SELECT
@@ -505,6 +556,9 @@ AS $$
       AND p.estado = 'alistada'
       AND p.estado_desde IS NOT NULL
       AND p.estado_desde >= m.alisto
+    UNION ALL
+    SELECT t.etapa, t.minutos, t.fecha
+    FROM tramos_cierre t
   ) d
   GROUP BY d.etapa, d.fecha
   UNION ALL
@@ -549,14 +603,20 @@ AS $$
       CASE p.estado
         WHEN 'por_confirmar' THEN '0'
         WHEN 'confirmada' THEN '1'
-        ELSE '2'
+        WHEN 'alistamiento' THEN '2'
+        WHEN 'alistada' THEN '3'
+        WHEN 'revisada' THEN '4'
+        WHEN 'despachada' THEN '5'
+        WHEN 'facturada' THEN '6'
       END AS etapa,
       CASE p.estado
         WHEN 'alistamiento' THEN p.estado_desde + interval '120 minutes'
-        ELSE p.estado_desde + interval '60 minutes'
+        WHEN 'por_confirmar' THEN p.estado_desde + interval '60 minutes'
+        WHEN 'confirmada' THEN p.estado_desde + interval '60 minutes'
+        ELSE p.estado_desde
       END AS cruce
     FROM por_orden p
-    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada', 'revisada', 'despachada', 'facturada')
       AND p.estado_desde IS NOT NULL
   ) r
   WHERE r.cruce <= now()
@@ -676,9 +736,45 @@ AS $$
       ) AS confirmo,
       MIN(e.created_at) FILTER (
         WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'alistamiento'
-      ) AS alisto
+      ) AS alisto,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'alistada'
+      ) AS alisto_fin,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'revisada'
+      ) AS reviso,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'despachada'
+      ) AS despacho,
+      MIN(e.created_at) FILTER (
+        WHERE e.accion = 'cambio_estado' AND e.estado_nuevo = 'facturada'
+      ) AS facturo
     FROM eventos e
     GROUP BY e.id_orden_venta
+  ),
+  tramos_cierre AS MATERIALIZED (
+    -- 3 Alistada, 4 Revisada, 5 Despachada, 6 Facturada.
+    -- Minutos desde la marca anterior hasta quedar en ese estado. Sin límite.
+    SELECT
+      cierre.etapa,
+      EXTRACT(EPOCH FROM (cierre.llego - previa.marca)) / 60.0 AS minutos,
+      (cierre.llego AT TIME ZONE 'America/Cancun')::date AS fecha
+    FROM marcas m
+    CROSS JOIN LATERAL (
+      VALUES
+        ('3'::text, m.alisto_fin),
+        ('4'::text, m.reviso),
+        ('5'::text, m.despacho),
+        ('6'::text, m.facturo)
+    ) AS cierre(etapa, llego)
+    CROSS JOIN LATERAL (
+      SELECT MAX(marca) AS marca
+      FROM (
+        VALUES (m.entro), (m.confirmo), (m.alisto), (m.alisto_fin), (m.reviso), (m.despacho)
+      ) AS previas(marca)
+      WHERE marca IS NOT NULL AND cierre.llego IS NOT NULL AND marca < cierre.llego
+    ) AS previa
+    WHERE cierre.llego IS NOT NULL AND previa.marca IS NOT NULL
   ),
   duraciones AS MATERIALIZED (
     -- Límites quemados, en minutos: Por confirmar 60, Confirmada 60, Alistamiento 120.
@@ -702,6 +798,9 @@ AS $$
       AND p.estado = 'alistada'
       AND p.estado_desde IS NOT NULL
       AND p.estado_desde >= m.alisto
+    UNION ALL
+    SELECT t.etapa, t.minutos
+    FROM tramos_cierre t
   )
   SELECT
     CASE
@@ -723,6 +822,9 @@ AS $$
           WHEN 'confirmada' THEN 'Confirmada'
           WHEN 'alistamiento' THEN 'Alistamiento'
           WHEN 'alistada' THEN 'Alistada'
+          WHEN 'revisada' THEN 'Revisada'
+          WHEN 'despachada' THEN 'Despachada'
+          WHEN 'facturada' THEN 'Facturada'
           ELSE p.estado
         END
       WHEN GROUPING(p.centro) = 0 THEN p.centro
@@ -830,6 +932,9 @@ AS $$
         WHEN accion = 'creacion' THEN 'ingreso'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'confirmada' THEN 'confirmada'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'alistamiento' THEN 'alistamiento'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'revisada' THEN 'revisada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'despachada' THEN 'despachada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'facturada' THEN 'facturada'
         WHEN accion = 'cambio_estado' THEN 'otro_estado'
         WHEN tipo = 'impresion_pdf_auto' THEN 'impresion_auto'
         WHEN tipo = 'impresion_pdf' THEN 'impresion'
@@ -841,6 +946,9 @@ AS $$
         WHEN accion = 'creacion' THEN 'Pedido ingresado'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'confirmada' THEN 'Pasó a confirmada'
         WHEN accion = 'cambio_estado' AND estado_nuevo = 'alistamiento' THEN 'Pasó a alistamiento'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'revisada' THEN 'Pasó a revisada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'despachada' THEN 'Pasó a despachada'
+        WHEN accion = 'cambio_estado' AND estado_nuevo = 'facturada' THEN 'Pasó a facturada'
         WHEN accion = 'cambio_estado' THEN 'Cambió de estado'
         WHEN tipo = 'impresion_pdf_auto' THEN 'Impresión automática'
         WHEN tipo = 'impresion_pdf' THEN 'Impresión'
@@ -908,7 +1016,7 @@ AS $$
   -- SLA provisional. El 1 está quemado a propósito.
   -- Una orden abierta está en tiempo si hoy, en America/Cancun, menos la fecha
   -- de pedido es de 1 día como máximo. Si la diferencia es mayor, está atrasada.
-  -- Las alistadas salen como cerradas y no se parten.
+  -- Alistada, revisada, despachada y facturada salen como cerradas y no se parten.
   -- Mantener este 1 igual que SLA_DIAS en src/components/ReporteOperacionTablero.js.
   -- El siguiente paso es leer ese día desde una tabla de parámetros.
   UNION ALL
@@ -919,9 +1027,12 @@ AS $$
       WHEN 'confirmada' THEN '1'
       WHEN 'alistamiento' THEN '2'
       WHEN 'alistada' THEN '3'
+      WHEN 'revisada' THEN '4'
+      WHEN 'despachada' THEN '5'
+      WHEN 'facturada' THEN '6'
     END,
     CASE
-      WHEN p.estado = 'alistada' THEN 'cerrada'
+      WHEN p.estado IN ('alistada', 'revisada', 'despachada', 'facturada') THEN 'cerrada'
       WHEN (timezone('America/Cancun', now()))::date - p.fecha <= 1 THEN 'en_tiempo'
       ELSE 'atrasada'
     END,
@@ -929,7 +1040,7 @@ AS $$
     0::numeric,
     0::numeric
   FROM por_orden p
-  WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada')
+  WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada', 'revisada', 'despachada', 'facturada')
   GROUP BY 2, 3
   UNION ALL
   SELECT
@@ -1066,6 +1177,9 @@ AS $$
       AND p.estado = 'alistada'
       AND p.estado_desde IS NOT NULL
       AND p.estado_desde >= m.alisto
+    UNION ALL
+    SELECT t.etapa, t.minutos, t.fecha
+    FROM tramos_cierre t
   ) d
   GROUP BY d.etapa, d.fecha
   UNION ALL
@@ -1110,14 +1224,20 @@ AS $$
       CASE p.estado
         WHEN 'por_confirmar' THEN '0'
         WHEN 'confirmada' THEN '1'
-        ELSE '2'
+        WHEN 'alistamiento' THEN '2'
+        WHEN 'alistada' THEN '3'
+        WHEN 'revisada' THEN '4'
+        WHEN 'despachada' THEN '5'
+        WHEN 'facturada' THEN '6'
       END AS etapa,
       CASE p.estado
         WHEN 'alistamiento' THEN p.estado_desde + interval '120 minutes'
-        ELSE p.estado_desde + interval '60 minutes'
+        WHEN 'por_confirmar' THEN p.estado_desde + interval '60 minutes'
+        WHEN 'confirmada' THEN p.estado_desde + interval '60 minutes'
+        ELSE p.estado_desde
       END AS cruce
     FROM por_orden p
-    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento')
+    WHERE p.estado IN ('por_confirmar', 'confirmada', 'alistamiento', 'alistada', 'revisada', 'despachada', 'facturada')
       AND p.estado_desde IS NOT NULL
   ) r
   WHERE r.cruce <= now()

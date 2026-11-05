@@ -7,89 +7,12 @@ import { isDirectLoginEnabled, redirectToWmsLogin } from '../lib/auth-config';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from '../components/LoginForm';
 import { useChat } from '../hooks/useChat';
-import FormattedMessage from '../components/FormattedMessage';
 import RouteChoice from '../components/RouteChoice';
+import ChatThread from '../components/ChatThread';
+import ChatSidebar from '../components/ChatSidebar';
 import EmbedPanel, { extractFirstUrl } from '../components/EmbedPanel';
 import { registerEmbedUrl, releaseEmbedUrl } from '../lib/embed-registry';
 import { getDisplayInitial, getDisplayName } from '../lib/display-name';
-
-function SidebarToggleIcon({ size = 16 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-      <line x1="6.5" y1="3" x2="6.5" y2="13" stroke="currentColor" strokeWidth="1.3" />
-    </svg>
-  );
-}
-
-function IconPlus() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <path d="M6 1.5V10.5M1.5 6H10.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.3" />
-    </svg>
-  );
-}
-
-function IconTrash() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 6h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconChat() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function MateoSparkleAvatar() {
-  return (
-    <div className="mateo-avatar" aria-hidden="true">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <path
-          d="M4.9685 7.74997C4.92386 7.57695 4.83367 7.41905 4.70731 7.29269C4.58095 7.16633 4.42304 7.07614 4.25 7.0315L1.1825 6.2405C1.13017 6.22565 1.0841 6.19412 1.0513 6.15072C1.01851 6.10732 1.00076 6.05441 1.00076 6C1.00076 5.9456 1.01851 5.89268 1.0513 5.84928C1.0841 5.80588 1.13017 5.77436 1.1825 5.7595L4.25 4.968C4.42298 4.92341 4.58084 4.83329 4.7072 4.70702C4.83356 4.58075 4.92378 4.42295 4.9685 4.25L5.7595 1.1825C5.77421 1.12996 5.80569 1.08367 5.84916 1.0507C5.89263 1.01772 5.94569 0.999878 6.00025 0.999878C6.05481 0.999878 6.10787 1.01772 6.15134 1.0507C6.19481 1.08367 6.2263 1.12996 6.241 1.1825L7.0315 4.25C7.07614 4.42304 7.16633 4.58095 7.29269 4.70731C7.41905 4.83367 7.57695 4.92386 7.74998 4.9685L10.8175 5.759C10.8703 5.77355 10.9168 5.80501 10.9499 5.84854C10.9831 5.89208 11.001 5.94528 11.001 6C11.001 6.05472 10.9831 6.10793 10.9499 6.15146C10.9168 6.19499 10.8703 6.22645 10.8175 6.241L7.74998 7.0315C7.57695 7.07614 7.41905 7.16633 7.29269 7.29269C7.16633 7.41905 7.07614 7.57695 7.0315 7.74997L6.2405 10.8175C6.2258 10.87 6.19431 10.9163 6.15084 10.9493C6.10737 10.9823 6.05431 11.0001 5.99975 11.0001C5.94519 11.0001 5.89213 10.9823 5.84866 10.9493C5.8052 10.9163 5.7737 10.87 5.759 10.8175L4.9685 7.74997Z"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.05"
-        />
-      </svg>
-    </div>
-  );
-}
-
-const MESES_HISTORIAL = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
-
-function formatoHistorialFecha(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const day = d.getDate();
-  const month = MESES_HISTORIAL[d.getMonth()];
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const suffix = hours >= 12 ? 'p. m.' : 'a. m.';
-  hours = hours % 12 || 12;
-  return `${day} de ${month}, ${String(hours).padStart(2, '0')}:${minutes} ${suffix}`;
-}
-
-function formatoHora(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const suffix = hours >= 12 ? 'p. m.' : 'a. m.';
-  hours = hours % 12 || 12;
-  return `${String(hours).padStart(2, '0')}:${minutes} ${suffix}`;
-}
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -264,114 +187,22 @@ export default function Home() {
 
   return (
     <div className={`layout${hasEmbed ? ' layout--with-embed' : ''}${isSidebarCollapsed ? ' layout--sidebar-collapsed' : ''}`}>
-      {isMobile && !isSidebarCollapsed && (
-        <div className="sidebar-backdrop" onClick={toggleSidebar} aria-hidden="true" />
-      )}
-      {isMobile && isSidebarCollapsed ? (
-        <button
-          className="menu-btn sidebar-open-btn"
-          type="button"
-          onClick={toggleSidebar}
-          aria-label="Abrir menú"
-        >
-          <SidebarToggleIcon />
-        </button>
-      ) : null}
-      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-        <div className="brand">
-          <button
-            className="menu-btn"
-            type="button"
-            onClick={toggleSidebar}
-            aria-label="Alternar menú"
-          >
-            <SidebarToggleIcon />
-          </button>
-          <button
-            className="brand-home"
-            type="button"
-            onClick={handleMostrarInicio}
-            aria-label="Ir al inicio"
-          >
-            <span className="brand-name">Historial</span>
-          </button>
-        </div>
-
-        <div className="sidebar-actions">
-          <button className="new-chat" onClick={handleNuevoChat} type="button">
-            <span className="new-chat__icon">
-              <IconPlus />
-            </span>
-            Nueva conversación
-          </button>
-        </div>
-
-        {persistError && (
-          <div className="history-empty history-empty--error">{persistError}</div>
-        )}
-        <div className="history polaria-scrollbar">
-          {isLoadingConversaciones && conversaciones.length === 0 && (
-            <div className="history-empty">Cargando conversaciones…</div>
-          )}
-          {!isLoadingConversaciones && conversaciones.length === 0 && (
-            <div className="history-empty">Sin conversaciones aún</div>
-          )}
-          {conversaciones.map((conversacion) => (
-            <div
-              key={conversacion.idConversacion}
-              className={`history-item${activeConversacionId === conversacion.idConversacion ? ' active' : ''}`}
-            >
-              <button
-                type="button"
-                className="history-item__open"
-                onClick={() => handleAbrirConversacion(conversacion.idConversacion)}
-              >
-                <span className="history-item__icon">
-                  <IconChat />
-                </span>
-                <span className="history-item__body">
-                  <span className="history-item__title">
-                    {conversacion.titulo || 'Nueva conversación'}
-                  </span>
-                  {(conversacion.updatedAt || conversacion.createdAt) && (
-                    <span className="history-item__date">
-                      {formatoHistorialFecha(conversacion.updatedAt || conversacion.createdAt)}
-                    </span>
-                  )}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="history-item__delete"
-                onClick={(event) => handleEliminarConversacion(
-                  event,
-                  conversacion.idConversacion,
-                )}
-                aria-label={`Eliminar ${conversacion.titulo || 'conversación'}`}
-                title="Eliminar conversación"
-              >
-                <IconTrash />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="user-panel">
-            <div className="avatar">
-              {isAuthenticated ? getDisplayInitial(user) : '?'}
-            </div>
-            <div className="user-panel__info">
-              <div className="user-name">
-                {isAuthenticated ? getDisplayName(user) || 'Usuario' : 'Invitado'}
-              </div>
-              <div className="user-role">
-                {isAuthenticated ? userDomain : 'Sin sesión'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </aside>
+      <ChatSidebar
+        isMobile={isMobile}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggle={toggleSidebar}
+        onNuevoChat={handleNuevoChat}
+        onInicio={handleMostrarInicio}
+        persistError={persistError}
+        isLoadingConversaciones={isLoadingConversaciones}
+        conversaciones={conversaciones}
+        activeConversacionId={activeConversacionId}
+        onAbrir={handleAbrirConversacion}
+        onEliminar={handleEliminarConversacion}
+        isAuthenticated={isAuthenticated}
+        user={user}
+        userDomain={userDomain}
+      />
 
       <main className="main">
         <MateoTopbar
@@ -404,61 +235,15 @@ export default function Home() {
         )}
 
         {!showWelcome && (
-          <div className="chat">
-            <div className="chat-thread">
-            {isLoadingMensajes && messages.length === 0 && (
-              <div className="chat-status">Cargando mensajes…</div>
-            )}
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`message ${msg.tipo}`}
-              >
-                {msg.tipo === 'ia' ? (
-                  <>
-                    <MateoSparkleAvatar />
-                    <div className="message-col">
-                      <div className="message-bubble">
-                        <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
-                      </div>
-                      {msg.createdAt && (
-                        <time className="message-time" dateTime={msg.createdAt}>
-                          {formatoHora(msg.createdAt)}
-                        </time>
-                      )}
-                      {msg.elegirRuta && index === messages.length - 1 && (
-                        <RouteChoice
-                          disabled={isSending}
-                          onElegir={enviarMensaje}
-                        />
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="message-bubble">{msg.texto}</div>
-                    {msg.createdAt && (
-                      <time className="message-time" dateTime={msg.createdAt}>
-                        {formatoHora(msg.createdAt)}
-                      </time>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-            {isSending && (
-              <div className="message ia message--typing" aria-live="polite" aria-label="Mateo está escribiendo">
-                <MateoSparkleAvatar />
-                <div className="typing-bubble">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-            </div>
-          </div>
+          <ChatThread
+            isLoadingMensajes={isLoadingMensajes}
+            messages={messages}
+            isSending={isSending}
+            openEmbed={openEmbed}
+            enviarMensaje={enviarMensaje}
+            accessToken={accessToken}
+            chatEndRef={chatEndRef}
+          />
         )}
 
         {!esperaEleccion && (
