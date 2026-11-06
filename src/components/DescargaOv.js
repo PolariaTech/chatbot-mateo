@@ -13,6 +13,8 @@ async function pedirArchivo(pedido, accessToken) {
     body: JSON.stringify({
       fecha_inicio: pedido.inicio,
       fecha_fin: pedido.fin,
+      fecha: pedido.fecha,
+      todo: Boolean(pedido.todo),
       columnas: pedido.columnas,
     }),
   });

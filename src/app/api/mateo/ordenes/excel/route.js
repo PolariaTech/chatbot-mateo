@@ -26,6 +26,7 @@ export async function POST(request) {
       schema: resolveReportesSchema(auth.user.codigoEmpresa),
       fechaInicio: pedido.inicio,
       fechaFin: pedido.fin,
+      fecha: pedido.fecha,
     });
     const filas = filasParaExcel(lineas, pedido.columnas);
     if (!filas.length) return errorJson('No hay órdenes en ese periodo.', 404);

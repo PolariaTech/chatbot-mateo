@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export function nombreArchivoOrdenes(inicio, fin) {
+  if (!inicio || !fin) return 'ordenes_todo.xlsx';
   return `ordenes_${inicio}_${fin}.xlsx`;
 }
 

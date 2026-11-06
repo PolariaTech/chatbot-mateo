@@ -16,7 +16,7 @@ import {
 } from '../lib/chat-session';
 import * as mateoApi from '../lib/mateo-api';
 import { esEleccionRuta, modoDesdeHistorial, modoDesdeTexto } from '../lib/route-choice';
-import { pedidoDesdeConversacion } from '../lib/descarga-ov';
+import { ajustarDescargas, pedidoDelTurno } from '../lib/descarga-ov-pedido';
 
 export function useChat({
   user,
@@ -122,7 +122,7 @@ export function useChat({
         const modo = modoDesdeHistorial(mensajes);
         modoRutaRef.current = modo;
         rutaConfirmadaRef.current = modo === 'VENTAS' || modo === 'PEDIDOS';
-        setMessages(mensajes);
+        setMessages(ajustarDescargas(mensajes));
         setPersistError(null);
       } catch (error) {
         if (handleSessionInvalid(error, () => onSessionInvalidRef.current?.())) return;
@@ -259,7 +259,7 @@ export function useChat({
 
       const data = await response.json();
       const leido = leerRespuestaAgente(data);
-      const descarga = leido.descarga || pedidoDesdeConversacion(texto, messages);
+      const descarga = pedidoDelTurno(leido.descarga, texto, messages);
 
       setMessages([
         ...nuevosMensajes,

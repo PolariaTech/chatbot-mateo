@@ -4,24 +4,29 @@ export const COLUMNAS_OV = [
   { clave: 'numero', etiqueta: 'Número', campo: 'numero_orden', grupo: 'orden', alias: ['numero', 'número', 'folio', 'codigo', 'código', 'numero de orden', 'número de orden'] },
   { clave: 'fecha', etiqueta: 'Fecha', campo: 'fecha', grupo: 'orden', alias: ['fecha', 'fecha pedido', 'fecha de pedido', 'dia', 'día'] },
   { clave: 'estado', etiqueta: 'Estado', campo: 'estado', grupo: 'orden', alias: ['estado', 'estatus', 'status'] },
-  { clave: 'orden_compra', etiqueta: 'Orden compra hotel', campo: 'orden_compra_hotel', grupo: 'orden', alias: ['orden de compra', 'orden compra', 'orden de compra del hotel', 'orden compra hotel', 'oc', 'pedido hotel'] },
+  { clave: 'orden_compra', etiqueta: 'Orden de Compra', campo: 'orden_compra_hotel', grupo: 'orden', alias: ['orden de compra', 'orden compra', 'orden de compra del hotel', 'orden compra hotel', 'oc', 'pedido hotel'] },
   { clave: 'centro', etiqueta: 'Centro de consumo', campo: 'centro_consumo', grupo: 'orden', alias: ['centro', 'centro de consumo', 'centro consumo'] },
-  { clave: 'comprador', etiqueta: 'Comprador', campo: 'comprador', grupo: 'orden', alias: ['comprador', 'cliente', 'nombre cliente'] },
+  { clave: 'comprador', etiqueta: 'Comprador', campo: 'comprador', grupo: 'orden', alias: ['comprador'] },
+  { clave: 'cliente', etiqueta: 'Cliente', campo: 'cliente', grupo: 'orden', alias: ['cliente', 'nombre cliente'] },
+  { clave: 'id', etiqueta: 'ID', campo: 'id_ov', grupo: 'orden', alias: ['id', 'id de la ov', 'id ov', 'id de la orden', 'id orden'] },
+  { clave: 'creacion', etiqueta: 'Creación', campo: 'creacion', grupo: 'orden', alias: ['creacion', 'creado', 'creados', 'timestamp de creacion', 'fecha de creacion', 'fecha creacion'] },
+  { clave: 'entrega', etiqueta: 'Fecha de entrega', campo: 'entrega', grupo: 'orden', alias: ['entrega', 'fecha de entrega solicitada', 'fecha de entrega', 'fecha entrega'] },
   { clave: 'cantidad', etiqueta: 'Cantidad', campo: 'cantidad', grupo: 'orden', alias: ['cantidad', 'cantidades'] },
-  { clave: 'importe', etiqueta: 'Importe', campo: 'importe', grupo: 'orden', alias: ['importe', 'total', 'venta', 'monto'] },
+  { clave: 'importe', etiqueta: 'Importe', campo: 'importe', grupo: 'orden', alias: ['importe', 'venta', 'monto'] },
+  { clave: 'total', etiqueta: 'Total', campo: 'total', grupo: 'orden', alias: ['total', 'valor total', 'valor total del pedido', 'total del pedido'] },
   { clave: 'producto', etiqueta: 'Producto', campo: 'producto', grupo: 'detalle', alias: ['producto', 'productos', 'descripcion', 'descripción', 'sku', 'codigo producto', 'código producto'] },
   { clave: 'unidad', etiqueta: 'Unidad', campo: 'unidad', grupo: 'detalle', alias: ['unidad', 'um', 'unidad de medida'] },
   { clave: 'precio', etiqueta: 'Precio', campo: 'precio', grupo: 'detalle', alias: ['precio', 'precio unitario'] },
 ];
 
-const COLUMNAS_POR_DEFECTO = ['numero', 'fecha', 'orden_compra', 'centro', 'comprador', 'cantidad', 'importe'];
+const COLUMNAS_POR_DEFECTO = ['numero', 'fecha', 'orden_compra', 'entrega', 'centro', 'comprador', 'cantidad', 'importe'];
 
 const ALIAS = COLUMNAS_OV.flatMap((columna) => [columna.clave, ...columna.alias].map((nombre) => ({
   nombre: normalizar(nombre),
   columna,
 })));
 
-function normalizar(texto) {
+export function normalizar(texto) {
   return String(texto || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -66,18 +71,28 @@ function leerCampo(cuerpo, nombre) {
   return match ? match[1].trim() : '';
 }
 
-function interpretar(cuerpo) {
-  const inicio = leerCampo(cuerpo, 'inicio') || leerCampo(cuerpo, 'fecha_inicio');
-  const fin = leerCampo(cuerpo, 'fin') || leerCampo(cuerpo, 'fecha_fin');
-  if (!periodoValido(inicio, fin)) return null;
-  const resuelto = resolverColumnas(leerCampo(cuerpo, 'columnas'));
+function fechaDeMarca(cuerpo) {
+  return /(?:^|\s)fecha=creacion\b/i.test(cuerpo) ? 'creacion' : 'pedido';
+}
+
+function pedidoDeColumnas(resuelto, extra) {
   if (!resuelto.columnas.length) return null;
   return {
-    inicio,
-    fin,
+    ...extra,
     columnas: resuelto.columnas.map((columna) => columna.clave),
     desconocidas: resuelto.desconocidas,
   };
+}
+
+function interpretar(cuerpo) {
+  const resuelto = resolverColumnas(leerCampo(cuerpo, 'columnas'));
+  if (/(?:^|\s)todo=si\b/i.test(cuerpo)) {
+    return pedidoDeColumnas(resuelto, { todo: true, inicio: null, fin: null, fecha: 'pedido' });
+  }
+  const inicio = leerCampo(cuerpo, 'inicio') || leerCampo(cuerpo, 'fecha_inicio');
+  const fin = leerCampo(cuerpo, 'fin') || leerCampo(cuerpo, 'fecha_fin');
+  if (!periodoValido(inicio, fin)) return null;
+  return pedidoDeColumnas(resuelto, { todo: false, inicio, fin, fecha: fechaDeMarca(cuerpo) });
 }
 
 export function leerDescargaOv(texto) {
@@ -92,14 +107,18 @@ export function leerDescargaOv(texto) {
 
 export function marcarDescarga(texto, pedido) {
   const base = String(texto || '').trim();
-  if (!pedido?.inicio || !pedido?.fin || !pedido.columnas?.length) return base;
+  if (!pedido?.columnas?.length) return base;
   const claves = pedido.columnas.map((columna) => columna.clave || columna).join(',');
-  return `${base}\n[[DESCARGAR_OV inicio=${pedido.inicio} fin=${pedido.fin} columnas=${claves}]]`.trim();
+  if (pedido.todo) return `${base}\n[[DESCARGAR_OV todo=si columnas=${claves}]]`.trim();
+  if (!pedido.inicio || !pedido.fin) return base;
+  const fecha = pedido.fecha === 'creacion' ? ' fecha=creacion' : '';
+  return `${base}\n[[DESCARGAR_OV inicio=${pedido.inicio} fin=${pedido.fin}${fecha} columnas=${claves}]]`.trim();
 }
 
 function claveOrden(fila) {
   return [
-    fila.numero_orden, fila.fecha, fila.estado, fila.comprador, fila.orden_compra_hotel, fila.centro_consumo,
+    fila.id_ov, fila.numero_orden, fila.creacion, fila.entrega, fila.cliente,
+    fila.fecha, fila.estado, fila.comprador, fila.orden_compra_hotel, fila.centro_consumo,
   ].join('|');
 }
 
@@ -131,6 +150,10 @@ function fechaVisible(valor) {
 
 function valorColumna(fila, columna) {
   if (columna.campo === 'fecha') return fechaVisible(fila.fecha);
+  if (columna.campo === 'entrega') {
+    const texto = String(fila.entrega || '');
+    return FECHA.test(texto.slice(0, 10)) ? fechaVisible(texto) : texto;
+  }
   const valor = fila[columna.campo];
   return valor == null ? '' : valor;
 }
@@ -151,84 +174,6 @@ export function filasParaExcel(lineas, claves) {
   return base.map((fila) => filaVisible(fila, columnas));
 }
 
-const MESES = {
-  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
-  julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10,
-  noviembre: 11, diciembre: 12,
-};
-
-function clavesPorDefecto() {
-  return resolverColumnas('').columnas.map((columna) => columna.clave);
-}
-
-function anioDelMes(mes, hoy) {
-  const anio = hoy.getFullYear();
-  return mes > hoy.getMonth() + 1 ? anio - 1 : anio;
-}
-
-function isoDia(anio, mes, dia) {
-  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
-  if (fecha.getUTCFullYear() !== anio || fecha.getUTCMonth() !== mes - 1 || fecha.getUTCDate() !== dia) return '';
-  return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-}
-
-function fechaNatural(dia, mesNombre, anioTexto, hoy) {
-  const mes = MESES[mesNombre];
-  if (!mes) return '';
-  const anio = anioTexto ? Number(anioTexto) : anioDelMes(mes, hoy);
-  return isoDia(anio, mes, Number(dia));
-}
-
-function armarPedido(inicio, fin) {
-  if (!periodoValido(inicio, fin)) return null;
-  return { inicio, fin, columnas: clavesPorDefecto(), desconocidas: [] };
-}
-
-function leerPeriodo(normal, hoy) {
-  const isoRango = normal.match(/(\d{4}-\d{2}-\d{2})\s*(?:al|a|hasta)\s*(\d{4}-\d{2}-\d{2})/);
-  if (isoRango) return armarPedido(isoRango[1], isoRango[2]);
-
-  const dosMeses = normal.match(/(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?\s*(?:al|a|hasta)\s*(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/);
-  if (dosMeses) {
-    return armarPedido(
-      fechaNatural(dosMeses[1], dosMeses[2], dosMeses[3], hoy),
-      fechaNatural(dosMeses[4], dosMeses[5], dosMeses[6], hoy),
-    );
-  }
-
-  const mismoMes = normal.match(/(\d{1,2})\s*(?:al|a|hasta)\s*(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/);
-  if (!mismoMes) return null;
-  return armarPedido(
-    fechaNatural(mismoMes[1], mismoMes[3], mismoMes[4], hoy),
-    fechaNatural(mismoMes[2], mismoMes[3], mismoMes[4], hoy),
-  );
-}
-
-function pideArchivo(normal) {
-  if (/\b(excel|archivo|descarga|descargame|xlsx)\b/.test(normal)) return true;
-  return /\btodas\b/.test(normal) && /\b(ov|orden|ordenes)\b/.test(normal);
-}
-
-export function pedidoDesdeTexto(texto, hoy = new Date()) {
-  const normal = normalizar(texto);
-  if (!pideArchivo(normal)) return null;
-  return leerPeriodo(normal, hoy);
-}
-
-export function pedidoDesdeConversacion(texto, anteriores, hoy = new Date()) {
-  const directo = pedidoDesdeTexto(texto, hoy);
-  if (directo) return directo;
-  if (!pideArchivo(normalizar(texto))) return null;
-  const previos = [...(anteriores || [])].reverse();
-  for (const previo of previos) {
-    if (previo?.tipo && previo.tipo !== 'usuario') continue;
-    const contenido = typeof previo === 'string' ? previo : previo?.texto;
-    const pedido = pedidoDesdeTexto(contenido, hoy) || leerPeriodo(normalizar(contenido), hoy);
-    if (pedido) return pedido;
-  }
-  return null;
-}
-
 export async function leerPedidoDescarga(request) {
   let body = {};
   try {
@@ -239,10 +184,18 @@ export async function leerPedidoDescarga(request) {
 
   const inicio = String(body.fecha_inicio || '');
   const fin = String(body.fecha_fin || '');
-  if (!periodoValido(inicio, fin)) return { error: 'Indica un periodo válido (inicio y fin).' };
+  const todo = body.todo === true || String(body.todo || '').toLowerCase() === 'si';
+  const fecha = String(body.fecha || '').toLowerCase() === 'creacion' ? 'creacion' : 'pedido';
+  if (!todo && !periodoValido(inicio, fin)) return { error: 'Indica un periodo válido (inicio y fin).' };
 
   const texto = Array.isArray(body.columnas) ? body.columnas.join(',') : body.columnas;
   const { columnas } = resolverColumnas(texto);
   if (!columnas.length) return { error: 'Ninguna columna pedida está en el catálogo.' };
-  return { inicio, fin, columnas: columnas.map((columna) => columna.clave) };
+  return {
+    todo,
+    inicio: todo ? null : inicio,
+    fin: todo ? null : fin,
+    fecha,
+    columnas: columnas.map((columna) => columna.clave),
+  };
 }

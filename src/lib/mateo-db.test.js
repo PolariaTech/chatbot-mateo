@@ -13,8 +13,10 @@ describe('mapMensaje', () => {
     });
     assert.equal(mensaje.texto, 'Archivo listo.');
     assert.deepEqual(mensaje.descarga, {
+      todo: false,
       inicio: '2026-10-22',
       fin: '2026-10-29',
+      fecha: 'pedido',
       columnas: ['numero'],
       desconocidas: [],
     });

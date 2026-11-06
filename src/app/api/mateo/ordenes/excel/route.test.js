@@ -90,6 +90,23 @@ describe('POST excel de órdenes', () => {
     assert.equal(bytes[1], 0x4b);
   });
 
+  it('acepta todo el historial sin fechas', async () => {
+    const respuesta = await POST(solicitud({
+      sesion: 'sesion-excel',
+      body: { todo: true, columnas: ['id', 'total'] },
+    }));
+    assert.equal(respuesta.status, 200);
+    assert.match(respuesta.headers.get('Content-Disposition'), /ordenes_todo\.xlsx/);
+  });
+
+  it('pide fechas cuando no es todo el historial', async () => {
+    const respuesta = await POST(solicitud({
+      sesion: 'sesion-excel',
+      body: { columnas: ['numero'] },
+    }));
+    assert.equal(respuesta.status, 400);
+  });
+
   it('avisa cuando el periodo no tiene órdenes', async () => {
     const respuesta = await POST(solicitud({
       sesion: 'sesion-excel',
