@@ -30,15 +30,18 @@ describe('POST listado de órdenes', () => {
         assert.equal(cuerpo.p_limite, 300);
         return new Response(JSON.stringify([{
           numero: 'OV-1',
-          fecha: '2026-11-06',
+          fecha_pedido: '2026-11-06',
+          fecha_entrega: '2026-11-09',
           estado: 'confirmada',
           comprador: 'Hotel',
           centro: 'Cocina',
           orden_compra: 'OC-1',
           cantidad: 2,
           importe: 20,
+          creacion: '2026-11-06 14:59:13',
           total_rango: 800,
         }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
       }
       return new Response(JSON.stringify({
         user: { idUsuario: 'usr-listado', username: 'mateo', nombre: 'Mateo', codigoEmpresa: 'Y9IHZ' },

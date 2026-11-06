@@ -29,15 +29,18 @@ describe('POST excel del listado', () => {
         const cuerpo = JSON.parse(init.body);
         const filas = cuerpo.p_fecha_inicio === '2026-01-01' ? [] : [{
           numero: 'OV-9',
-          fecha: '2026-11-02',
+          fecha_pedido: '2026-11-02',
+          fecha_entrega: '2026-11-05',
           estado: 'facturada',
           comprador: 'Hotel',
           centro: 'Cocina',
           orden_compra: 'OC-9',
           cantidad: 1,
           importe: 15,
+          creacion: '2026-11-02 10:00:00',
           total_rango: 1,
         }];
+
         return new Response(JSON.stringify(filas), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
       return new Response(JSON.stringify({

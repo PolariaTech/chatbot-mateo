@@ -10,19 +10,21 @@ export function debeContinuar(filas, firmaAnterior, tamanoPagina) {
 
 export function firmaDe(filas) {
   const primera = filas[0] || {};
-  return [primera.numero, primera.fecha, primera.importe, filas.length].join('|');
+  return [primera.numero, primera.fecha_pedido, primera.importe, filas.length].join('|');
 }
 
 function limpiar(fila) {
   return {
     numero: fila.numero,
-    fecha: fila.fecha,
+    fecha_pedido: fila.fecha_pedido,
+    fecha_entrega: fila.fecha_entrega,
     estado: fila.estado,
     comprador: fila.comprador,
     centro: fila.centro,
     orden_compra: fila.orden_compra,
     cantidad: fila.cantidad,
     importe: fila.importe,
+    creacion: fila.creacion,
   };
 }
 

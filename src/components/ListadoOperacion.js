@@ -3,23 +3,13 @@
 import { useEffect, useState } from 'react';
 import { pedirExcelListado, pedirListado } from '../lib/listado-ordenes-cliente';
 import {
+  COLUMNAS_ORDENES_VENTA,
   filasExcel,
   libroListado,
   nombreListado,
   notaDeTope,
   textoCelda,
 } from '../lib/listado-ordenes';
-
-const COLUMNAS_ORDEN = [
-  ['numero', 'Número'],
-  ['fecha', 'Fecha'],
-  ['estado', 'Estado'],
-  ['comprador', 'Comprador'],
-  ['centro', 'Centro de consumo'],
-  ['orden_compra', 'Orden de Compra'],
-  ['cantidad', 'Cantidad'],
-  ['importe', 'Importe'],
-];
 
 function guardarExcel(bytes, nombre) {
   const blob = new Blob([bytes], {
@@ -143,7 +133,7 @@ export function ListadoOrdenesPeriodo({ accessToken, fechaInicio, fechaFin, onSe
       </div>
       {aviso ? <p className="rp-footer-note">{aviso}</p> : null}
       {notaError ? <p className="rp-footer-note">{notaError}</p> : null}
-      <TablaListado columnas={COLUMNAS_ORDEN} filas={ordenes} clase="rp-table-container rp-listado-ov" />
+      <TablaListado columnas={COLUMNAS_ORDENES_VENTA} filas={ordenes} clase="rp-table-container rp-listado-ov" />
     </section>
   );
 }
