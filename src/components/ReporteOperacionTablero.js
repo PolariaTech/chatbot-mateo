@@ -11,8 +11,7 @@ import {
   filasPorEstado,
   puntoTendencia,
 } from '../lib/ordenesventa-estados';
-
-const DINERO = { importe: true };
+import { ListadoOperacion, ListadoOrdenesPeriodo } from './ListadoOperacion';
 
 const COLUMNAS_ESTADO = [
   ['etiqueta', 'Estado'],
@@ -41,17 +40,6 @@ const COLUMNAS_COMPRADOR = [
   ['ordenes', 'Órdenes'],
   ['cantidad', 'Cantidad'],
   ['importe', 'Importe'],
-];
-
-const COLUMNAS_COINCIDENCIA = [
-  ['etiqueta', 'Resultado'],
-  ['ordenes', 'Órdenes'],
-  ['cantidad', 'Líneas'],
-];
-
-const COLUMNAS_SUSTITUCION = [
-  ['etiqueta', 'Mateo sugirió → quedó'],
-  ['ordenes', 'Veces'],
 ];
 
 const COLUMNAS_EDAD = [
@@ -184,13 +172,6 @@ function formatoCantidad(valor) {
   return n.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-function formatoCelda(valor, columna) {
-  if (valor == null || valor === '') return '';
-  if (DINERO[columna]) return formatoDinero(valor);
-  if (columna === 'cantidad' || columna === 'ordenes') return formatoCantidad(valor);
-  return String(valor);
-}
-
 function Kpi({ tono, etiqueta, valor, ancho = false }) {
   return (
     <div className={`rp-kpi rp-dot-${tono}${ancho ? ' rp-kpi-ancho' : ''}`}>
@@ -224,7 +205,6 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
       producto: de('producto', 'cantidad'),
       comprador: de('comprador', 'ordenes'),
       coincidencia: de('coincidencia', 'cantidad'),
-      sustitucion: de('sustitucion', 'ordenes').slice(0, 15),
       edad: lista
         .filter((row) => row.seccion === 'edad')
         .sort((a, b) => String(a.clave).localeCompare(String(b.clave))),
@@ -491,26 +471,15 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
                   wide
                 />
               </div>
-              <div className="rp-result-header"><h2>Por estado</h2></div>
-              <Tabla columnas={COLUMNAS_ESTADO} filas={cortes.estado} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Productos más pedidos</h2></div>
-              <Tabla columnas={COLUMNAS_PRODUCTO} filas={cortes.producto} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Por comprador</h2></div>
-              <Tabla columnas={COLUMNAS_COMPRADOR} filas={cortes.comprador} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Por centro de consumo</h2></div>
-              <Tabla columnas={COLUMNAS_CENTRO} filas={cortes.centro} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Coincidencia del producto</h2></div>
-              <Tabla columnas={COLUMNAS_COINCIDENCIA} filas={cortes.coincidencia} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Sustituciones</h2></div>
-              <Tabla columnas={COLUMNAS_SUSTITUCION} filas={cortes.sustitucion} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Tiempo en el estado actual</h2></div>
-              <Tabla columnas={COLUMNAS_EDAD} filas={cortes.edad} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Bitácora de la orden</h2></div>
-              <Tabla columnas={COLUMNAS_EVENTO} filas={cortes.evento} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Hora del movimiento</h2></div>
-              <Tabla columnas={COLUMNAS_HORA} filas={cortes.hora} rowKey={(row) => row.clave} />
-              <div className="rp-result-header"><h2>Tiempo hasta confirmar</h2></div>
-              <Tabla columnas={COLUMNAS_CONFIRMACION} filas={cortes.confirmacion} rowKey={(row) => row.clave} />
+              <ListadoOperacion titulo="Por estado" columnas={COLUMNAS_ESTADO} filas={cortes.estado} nombre={`operacion_estado_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Productos más pedidos" columnas={COLUMNAS_PRODUCTO} filas={cortes.producto} nombre={`operacion_productos_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Por comprador" columnas={COLUMNAS_COMPRADOR} filas={cortes.comprador} nombre={`operacion_comprador_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Por centro de consumo" columnas={COLUMNAS_CENTRO} filas={cortes.centro} nombre={`operacion_centro_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOrdenesPeriodo accessToken={accessToken} fechaInicio={fechaInicio} fechaFin={fechaFin} onSessionInvalid={onSessionInvalid} />
+              <ListadoOperacion titulo="Tiempo en el estado actual" columnas={COLUMNAS_EDAD} filas={cortes.edad} nombre={`operacion_edad_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Bitácora de la orden" columnas={COLUMNAS_EVENTO} filas={cortes.evento} nombre={`operacion_bitacora_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Hora del movimiento" columnas={COLUMNAS_HORA} filas={cortes.hora} nombre={`operacion_hora_${fechaInicio}_${fechaFin}.xlsx`} />
+              <ListadoOperacion titulo="Tiempo hasta confirmar" columnas={COLUMNAS_CONFIRMACION} filas={cortes.confirmacion} nombre={`operacion_confirmacion_${fechaInicio}_${fechaFin}.xlsx`} />
             </>
           )}
         </div>
@@ -924,39 +893,6 @@ function CampoFecha({ id, label, texto, iso, onTexto, onIso }) {
           onChange={(e) => onIso(e.target.value)}
         />
       </div>
-    </div>
-  );
-}
-
-function Tabla({ columnas, filas, rowKey }) {
-  return (
-    <div className="rp-table-container">
-      <table>
-        <thead>
-          <tr>
-            {columnas.map(([key, label]) => (
-              <th key={key} className={DINERO[key] || key === 'cantidad' || key === 'ordenes' ? 'rp-num' : ''}>{label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {filas.length === 0 ? (
-            <tr>
-              <td colSpan={columnas.length} className="rp-empty">Ningún registro en este rango.</td>
-            </tr>
-          ) : (
-            filas.map((row, index) => (
-              <tr key={rowKey(row, index)}>
-                {columnas.map(([key]) => (
-                  <td key={key} className={DINERO[key] || key === 'cantidad' || key === 'ordenes' ? 'rp-num' : ''}>
-                    {formatoCelda(row[key], key)}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
     </div>
   );
 }

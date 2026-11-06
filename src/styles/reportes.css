@@ -480,6 +480,11 @@
   background: rgba(4, 14, 12, 0.45);
 }
 
+.reportes-root .rp-table-container.rp-listado-ov {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
 .reportes-root table {
   width: max-content;
   min-width: 100%;
