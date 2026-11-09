@@ -11,11 +11,12 @@ import {
 import { mapMensaje } from './mateo-db.js';
 
 describe('descarga de órdenes', () => {
-  it('usa las columnas de siempre cuando no piden ninguna', () => {
+  it('usa el catálogo completo cuando no piden ninguna', () => {
     const resuelto = resolverColumnas('');
     assert.deepEqual(resuelto.desconocidas, []);
     assert.deepEqual(resuelto.columnas.map((columna) => columna.clave), [
-      'numero', 'fecha', 'orden_compra', 'entrega', 'centro', 'comprador', 'cantidad', 'importe',
+      'numero', 'fecha', 'estado', 'orden_compra', 'centro', 'comprador', 'cliente', 'id',
+      'creacion', 'entrega', 'cantidad', 'importe', 'total', 'producto', 'unidad', 'precio',
     ]);
   });
 

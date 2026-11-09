@@ -29,6 +29,17 @@ describe('pedido OT desde texto', () => {
     assert.deepEqual(pedido.columnas, ['numero', 'estado']);
   });
 
+  it('sin campos nombrados pide todas las columnas', () => {
+    const pedido = pedidoOtDesdeTexto(
+      'entregame un excel con todas las ordenes de trabajo del 31 de octubre de 2026',
+      hoy,
+    );
+    assert.equal(pedido.inicio, '2026-10-31');
+    assert.ok(pedido.columnas.includes('unidad'));
+    assert.ok(pedido.columnas.includes('precio'));
+    assert.ok(pedido.columnas.length >= 10);
+  });
+
   it('respeta la marca del agente si el usuario no pide archivo OT', () => {
     const marca = {
       tipo: 'ot',

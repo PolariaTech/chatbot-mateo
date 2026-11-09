@@ -8,10 +8,16 @@ export const COLUMNAS_OT = [
     alias: ['numero', 'número', 'orden de venta', 'orden venta', 'ov', 'pedido'],
   },
   {
+    clave: 'fecha',
+    etiqueta: 'Fecha',
+    campo: 'fecha',
+    alias: ['fecha', 'fecha pedido'],
+  },
+  {
     clave: 'referencia',
     etiqueta: 'Orden de trabajo',
     campo: 'referencia',
-    alias: ['referencia', 'orden de trabajo', 'orden de tarea', 'ot', 'almacen', 'almacén'],
+    alias: ['referencia', 'orden de trabajo', 'orden de tarea', 'ot'],
   },
   {
     clave: 'modo',
@@ -30,6 +36,18 @@ export const COLUMNAS_OT = [
     etiqueta: 'Cantidad',
     campo: 'cantidad',
     alias: ['cantidad', 'cantidades'],
+  },
+  {
+    clave: 'unidad',
+    etiqueta: 'Unidad',
+    campo: 'unidad',
+    alias: ['unidad', 'unidad de medida', 'uom'],
+  },
+  {
+    clave: 'precio',
+    etiqueta: 'Precio unitario',
+    campo: 'precio',
+    alias: ['precio', 'precio unitario', 'precio unit'],
   },
   {
     clave: 'importe',
@@ -65,7 +83,7 @@ export const COLUMNAS_OT = [
     clave: 'almacen',
     etiqueta: 'Almacén',
     campo: 'almacen',
-    alias: ['bodega', 'almacen bodega'],
+    alias: ['almacen', 'almacén', 'bodega', 'almacen bodega'],
   },
   {
     clave: 'destino',
@@ -73,15 +91,9 @@ export const COLUMNAS_OT = [
     campo: 'destino',
     alias: ['destino'],
   },
-  {
-    clave: 'fecha',
-    etiqueta: 'Fecha',
-    campo: 'fecha',
-    alias: ['fecha', 'fecha pedido'],
-  },
 ];
 
-const COLUMNAS_POR_DEFECTO = ['numero', 'referencia', 'producto', 'importe', 'estado'];
+const COLUMNAS_POR_DEFECTO = COLUMNAS_OT.map((columna) => columna.clave);
 
 const ALIAS = COLUMNAS_OT.flatMap((columna) => [columna.clave, ...columna.alias].map((nombre) => ({
   nombre: normalizar(nombre),

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  COLUMNAS_OT,
   filasOtParaExcel,
   leerDescargaOt,
   marcarDescargaOt,
@@ -8,6 +9,16 @@ import {
 } from './descarga-ot.js';
 
 describe('descarga de órdenes de trabajo', () => {
+  it('sin columnas pedidas usa el catálogo completo', () => {
+    const resuelto = resolverColumnasOt('');
+    assert.deepEqual(
+      resuelto.columnas.map((columna) => columna.clave),
+      COLUMNAS_OT.map((columna) => columna.clave),
+    );
+    assert.ok(resuelto.columnas.some((columna) => columna.clave === 'unidad'));
+    assert.ok(resuelto.columnas.some((columna) => columna.clave === 'precio'));
+  });
+
   it('lee la marca DESCARGAR_OT', () => {
     const leido = leerDescargaOt(
       'Listo.\n[[DESCARGAR_OT inicio=2026-10-31 fin=2026-10-31 columnas=numero,producto,importe]]',

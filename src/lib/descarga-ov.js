@@ -19,7 +19,7 @@ export const COLUMNAS_OV = [
   { clave: 'precio', etiqueta: 'Precio', campo: 'precio', grupo: 'detalle', alias: ['precio', 'precio unitario'] },
 ];
 
-const COLUMNAS_POR_DEFECTO = ['numero', 'fecha', 'orden_compra', 'entrega', 'centro', 'comprador', 'cantidad', 'importe'];
+const COLUMNAS_POR_DEFECTO = COLUMNAS_OV.map((columna) => columna.clave);
 
 const ALIAS = COLUMNAS_OV.flatMap((columna) => [columna.clave, ...columna.alias].map((nombre) => ({
   nombre: normalizar(nombre),
