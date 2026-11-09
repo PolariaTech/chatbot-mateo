@@ -218,6 +218,7 @@ export function ajustarDescargas(mensajes, hoy = new Date()) {
     if (mensaje?.tipo !== 'ia' || !mensaje.descarga) return mensaje;
     const anteriores = mensajes.slice(0, indice);
     const ultimo = [...anteriores].reverse().find((item) => !item?.tipo || item.tipo === 'usuario');
+    if (mensaje.descarga.tipo === 'ot') return mensaje;
     const pedido = pedidoDelTurno(mensaje.descarga, ultimo?.texto || '', anteriores, hoy);
     return pedido ? { ...mensaje, descarga: pedido } : mensaje;
   });

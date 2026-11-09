@@ -17,6 +17,7 @@ import {
 import * as mateoApi from '../lib/mateo-api';
 import { esEleccionRuta, modoDesdeHistorial, modoDesdeTexto } from '../lib/route-choice';
 import { ajustarDescargas, pedidoDelTurno } from '../lib/descarga-ov-pedido';
+import { pedidoOtDelTurno } from '../lib/descarga-ot-pedido';
 
 export function useChat({
   user,
@@ -259,7 +260,8 @@ export function useChat({
 
       const data = await response.json();
       const leido = leerRespuestaAgente(data);
-      const descarga = pedidoDelTurno(leido.descarga, texto, messages);
+      const descarga = pedidoOtDelTurno(leido.descarga, texto)
+        || pedidoDelTurno(leido.descarga?.tipo === 'ot' ? null : leido.descarga, texto, messages);
 
       setMessages([
         ...nuevosMensajes,

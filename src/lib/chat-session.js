@@ -1,6 +1,7 @@
 import * as mateoApi from './mateo-api.js';
 import { esEleccionRuta, leerEleccionRuta, marcarEleccionRuta, marcarRuta, modoDesdeHistorial } from './route-choice.js';
 import { leerDescargaOv, marcarDescarga } from './descarga-ov.js';
+import { leerDescargaOt, marcarDescargaOt } from './descarga-ot.js';
 
 const WEBHOOK_URL = 'https://polariatech.app.n8n.cloud/webhook/chat';
 const WEBHOOK_URL_CHATPOLARIA = 'https://polariatech.app.n8n.cloud/webhook/polaria';
@@ -107,18 +108,20 @@ export function leerRespuestaAgente(data) {
     ?? data.output
     ?? data.reply
     ?? JSON.stringify(data);
-  const descargado = leerDescargaOv(respuestaIA);
-  const leido = leerEleccionRuta(descargado.texto);
+  const descargaOt = leerDescargaOt(respuestaIA);
+  const descargaOv = leerDescargaOv(descargaOt.texto);
+  const leido = leerEleccionRuta(descargaOv.texto);
   return {
     texto: leido.texto,
     elegirRuta: leido.elegirRuta || responseBody?.elegirRuta === true || responseBody?.elegir_ruta === true,
-    descarga: descargado.pedido,
+    descarga: descargaOt.pedido || descargaOv.pedido,
     tokensUsados: data.tokensUsados ?? data.tokens_usados ?? null,
   };
 }
 
 export function contenidoConRuta(texto, elegirRuta, modo, descarga) {
   const conRuta = marcarRuta(elegirRuta ? marcarEleccionRuta(texto) : texto, modo);
+  if (descarga?.tipo === 'ot') return marcarDescargaOt(conRuta, descarga);
   return marcarDescarga(conRuta, descarga);
 }
 

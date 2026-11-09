@@ -2,15 +2,25 @@
 
 import React, { useState } from 'react';
 import { nombreArchivoOrdenes } from '../lib/descarga-ov-excel';
+import { nombreArchivoOt } from '../lib/descarga-ot-excel';
+
+function esPedidoOt(pedido) {
+  return pedido?.tipo === 'ot';
+}
 
 async function pedirArchivo(pedido, accessToken) {
-  const respuesta = await fetch('/api/mateo/ordenes/excel', {
+  const esOt = esPedidoOt(pedido);
+  const respuesta = await fetch(esOt ? '/api/mateo/ordenes-trabajo/excel' : '/api/mateo/ordenes/excel', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
+    body: JSON.stringify(esOt ? {
+      fecha_inicio: pedido.inicio,
+      fecha_fin: pedido.fin,
+      columnas: pedido.columnas,
+    } : {
       fecha_inicio: pedido.inicio,
       fecha_fin: pedido.fin,
       fecha: pedido.fecha,
@@ -42,7 +52,10 @@ export default function DescargaOv({ pedido, accessToken }) {
     setNota('Preparando el Excel…');
     try {
       const blob = await pedirArchivo(pedido, accessToken);
-      guardarBlob(blob, nombreArchivoOrdenes(pedido.inicio, pedido.fin));
+      const nombre = esPedidoOt(pedido)
+        ? nombreArchivoOt(pedido.inicio, pedido.fin)
+        : nombreArchivoOrdenes(pedido.inicio, pedido.fin);
+      guardarBlob(blob, nombre);
       setNota('');
     } catch (error) {
       setNota(error.message || 'No se pudo generar el Excel.');

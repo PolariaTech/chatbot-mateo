@@ -1,5 +1,6 @@
 import { leerEleccionRuta, leerRutaGuardada } from './route-choice';
 import { leerDescargaOv } from './descarga-ov';
+import { leerDescargaOt } from './descarga-ot';
 
 export function mapConversacion(row) {
   return {
@@ -12,14 +13,15 @@ export function mapConversacion(row) {
 
 export function mapMensaje(row) {
   const modoRuta = leerRutaGuardada(row.contenido);
-  const descargado = leerDescargaOv(row.contenido);
+  const descargaOt = leerDescargaOt(row.contenido);
+  const descargado = leerDescargaOv(descargaOt.texto);
   const { texto, elegirRuta } = leerEleccionRuta(descargado.texto);
   return {
     idHistorial: row.id_historial,
     tipo: row.rol === 'assistant' ? 'ia' : 'usuario',
     texto,
     elegirRuta,
-    descarga: descargado.pedido,
+    descarga: descargaOt.pedido || descargado.pedido,
     modoRuta,
     estado: row.estado,
     createdAt: row.created_at,

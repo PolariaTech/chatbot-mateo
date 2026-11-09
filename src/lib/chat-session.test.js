@@ -130,4 +130,18 @@ describe('leerRespuestaAgente', () => {
     assert.equal(leido.texto, 'Te dejo el archivo.')
     assert.deepEqual(leido.descarga.columnas, ['numero', 'estado'])
   })
+
+  it('lee la marca de órdenes de trabajo', () => {
+    const leido = leerRespuestaAgente({
+      output: 'Te dejo el desglose.\n[[DESCARGAR_OT inicio=2026-10-31 fin=2026-10-31 columnas=numero,producto,importe]]',
+    })
+    assert.equal(leido.texto.includes('DESCARGAR_OT'), false)
+    assert.deepEqual(leido.descarga, {
+      tipo: 'ot',
+      inicio: '2026-10-31',
+      fin: '2026-10-31',
+      columnas: ['numero', 'producto', 'importe'],
+      desconocidas: [],
+    })
+  })
 })
