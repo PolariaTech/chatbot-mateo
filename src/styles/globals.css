@@ -1710,7 +1710,8 @@ a.polaria-topbar-btn--mateo {
 .message-bubble {
   min-width: 0;
   padding: 9px 13px;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   font-family: Inter, system-ui, sans-serif;
   font-size: 0.8125rem;
   line-height: 19px;
@@ -1844,7 +1845,8 @@ a.polaria-topbar-btn--mateo {
 
 .chat-table td span {
   display: block;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .chat-ranking__pos {
@@ -2273,9 +2275,10 @@ button.message-report-link--embed:hover {
 
 .report-metric {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: 6px 16px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--w08);
 }
@@ -2292,14 +2295,21 @@ button.message-report-link--embed:hover {
   color: var(--w50);
   font-size: 0.8125rem;
   line-height: 1.4;
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
+  max-width: 100%;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .report-metric__value {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  flex: 1 1 10rem;
+  min-width: 0;
+  max-width: 100%;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .report-metric__amount {
