@@ -26,6 +26,9 @@ export async function POST(request) {
       schema: resolveReportesSchema(auth.user.codigoEmpresa),
       fechaInicio: pedido.inicio,
       fechaFin: pedido.fin,
+      horas: pedido.horas,
+      horaInicio: pedido.horaInicio,
+      horaFin: pedido.horaFin,
     });
     const filas = filasOtParaExcel(lineas, pedido.columnas);
     if (!filas.length) return errorJson('No hay órdenes de trabajo ni desglose por almacén en ese periodo.', 404);

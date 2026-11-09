@@ -1,5 +1,5 @@
 import { normalizeSupabaseUrl } from './supabase-server';
-import { filasDeRespuesta, totalDeRango } from './descarga-ov-consulta.js';
+import { agregarVentana, filasDeRespuesta, totalDeRango } from './descarga-ov-consulta.js';
 
 const PAGINA = 1000;
 
@@ -17,7 +17,7 @@ function firmaPagina(filas) {
   return [primera.numero_orden, primera.referencia, primera.producto, primera.modo, filas.length].join('|');
 }
 
-async function leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, desde }) {
+async function leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, desde, horas, horaInicio, horaFin }) {
   const hasta = desde + PAGINA - 1;
   const response = await fetch(`${baseUrl}/rest/v1/rpc/get_operacion_desglose_ov`, {
     method: 'POST',
@@ -31,17 +31,17 @@ async function leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, desde }
       Prefer: 'count=exact',
       Range: `${desde}-${hasta}`,
     },
-    body: JSON.stringify({
+    body: JSON.stringify(agregarVentana({
       p_fecha_inicio: fechaInicio,
       p_fecha_fin: fechaFin,
-    }),
+    }, horas, horaInicio, horaFin)),
   });
   if (!response.ok && response.status !== 206) throw new Error(await leerError(response));
   const filas = filasDeRespuesta(await response.json());
   return { filas, total: totalDeRango(response.headers.get('content-range')) };
 }
 
-export async function consultarDesgloseOv({ schema, fechaInicio, fechaFin }) {
+export async function consultarDesgloseOv({ schema, fechaInicio, fechaFin, horas, horaInicio, horaFin }) {
   const baseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!baseUrl || !key) throw new Error('Supabase no está configurado.');
@@ -50,7 +50,7 @@ export async function consultarDesgloseOv({ schema, fechaInicio, fechaFin }) {
   let desde = 0;
   let firmaAnterior = '';
   while (desde < 200000) {
-    const pagina = await leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, desde });
+    const pagina = await leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, desde, horas, horaInicio, horaFin });
     const firma = firmaPagina(pagina.filas);
     if (!pagina.filas.length || firma === firmaAnterior) break;
     firmaAnterior = firma;

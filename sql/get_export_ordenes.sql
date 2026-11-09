@@ -13,7 +13,10 @@ CREATE OR REPLACE FUNCTION emp_jbr_cygnus_y9ihz.get_export_ordenes(
   p_fecha_fin date DEFAULT NULL,
   p_fecha text DEFAULT 'pedido',
   p_desde integer DEFAULT 0,
-  p_limite integer DEFAULT 1000
+  p_limite integer DEFAULT 1000,
+  p_horas integer DEFAULT NULL,
+  p_hora_inicio timestamp with time zone DEFAULT NULL,
+  p_hora_fin timestamp with time zone DEFAULT NULL
 )
 RETURNS TABLE (
   numero_orden text,
@@ -61,20 +64,28 @@ AS $$
   LEFT JOIN emp_jbr_cygnus_y9ihz.producto pr ON pr.id_producto = l.id_producto
   WHERE ov.estado IS DISTINCT FROM 'cancelada'
     AND (
-      (p_fecha_inicio IS NULL AND p_fecha_fin IS NULL)
-      OR (
-        p_fecha_inicio IS NOT NULL
-        AND p_fecha_fin IS NOT NULL
-        AND ov.fecha_pedido::date >= p_fecha_inicio
-        AND ov.fecha_pedido::date < (p_fecha_fin + 1)
-      )
+      CASE
+        WHEN p_hora_inicio IS NOT NULL AND p_hora_fin IS NOT NULL THEN
+          ov.created_at >= p_hora_inicio AND ov.created_at <= p_hora_fin
+        WHEN p_horas IS NOT NULL AND p_horas > 0 THEN
+          ov.created_at >= now() - make_interval(hours => LEAST(p_horas, 168))
+          AND ov.created_at <= now()
+        ELSE
+          (p_fecha_inicio IS NULL AND p_fecha_fin IS NULL)
+          OR (
+            p_fecha_inicio IS NOT NULL
+            AND p_fecha_fin IS NOT NULL
+            AND ov.fecha_pedido::date >= p_fecha_inicio
+            AND ov.fecha_pedido::date < (p_fecha_fin + 1)
+          )
+      END
     )
   ORDER BY ov.created_at, ov.codigo, pr.descripcion
   OFFSET GREATEST(COALESCE(p_desde, 0), 0)
   LIMIT LEAST(GREATEST(COALESCE(p_limite, 1000), 1), 1000)
 $$;
 
-GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_export_ordenes(date, date, text, integer, integer)
+GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_export_ordenes(date, date, text, integer, integer, integer, timestamp with time zone, timestamp with time zone)
   TO service_role, authenticator, anon, authenticated;
 
 DROP FUNCTION IF EXISTS public.get_export_ordenes(date, date, text);
@@ -85,7 +96,10 @@ CREATE OR REPLACE FUNCTION public.get_export_ordenes(
   p_fecha_fin date DEFAULT NULL,
   p_fecha text DEFAULT 'pedido',
   p_desde integer DEFAULT 0,
-  p_limite integer DEFAULT 1000
+  p_limite integer DEFAULT 1000,
+  p_horas integer DEFAULT NULL,
+  p_hora_inicio timestamp with time zone DEFAULT NULL,
+  p_hora_fin timestamp with time zone DEFAULT NULL
 )
 RETURNS TABLE (
   numero_orden text,
@@ -133,20 +147,28 @@ AS $$
   LEFT JOIN public.producto pr ON pr.id_producto = l.id_producto
   WHERE ov.estado IS DISTINCT FROM 'cancelada'
     AND (
-      (p_fecha_inicio IS NULL AND p_fecha_fin IS NULL)
-      OR (
-        p_fecha_inicio IS NOT NULL
-        AND p_fecha_fin IS NOT NULL
-        AND ov.fecha_pedido::date >= p_fecha_inicio
-        AND ov.fecha_pedido::date < (p_fecha_fin + 1)
-      )
+      CASE
+        WHEN p_hora_inicio IS NOT NULL AND p_hora_fin IS NOT NULL THEN
+          ov.created_at >= p_hora_inicio AND ov.created_at <= p_hora_fin
+        WHEN p_horas IS NOT NULL AND p_horas > 0 THEN
+          ov.created_at >= now() - make_interval(hours => LEAST(p_horas, 168))
+          AND ov.created_at <= now()
+        ELSE
+          (p_fecha_inicio IS NULL AND p_fecha_fin IS NULL)
+          OR (
+            p_fecha_inicio IS NOT NULL
+            AND p_fecha_fin IS NOT NULL
+            AND ov.fecha_pedido::date >= p_fecha_inicio
+            AND ov.fecha_pedido::date < (p_fecha_fin + 1)
+          )
+      END
     )
   ORDER BY ov.created_at, ov.codigo, pr.descripcion
   OFFSET GREATEST(COALESCE(p_desde, 0), 0)
   LIMIT LEAST(GREATEST(COALESCE(p_limite, 1000), 1), 1000)
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_export_ordenes(date, date, text, integer, integer)
+GRANT EXECUTE ON FUNCTION public.get_export_ordenes(date, date, text, integer, integer, integer, timestamp with time zone, timestamp with time zone)
   TO service_role, authenticator, anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';

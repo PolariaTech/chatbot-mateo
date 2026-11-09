@@ -31,6 +31,9 @@ describe('descarga de órdenes de trabajo', () => {
       columnas: ['numero', 'producto', 'importe'],
       desconocidas: [],
     });
+    const horas = leerDescargaOt('[[DESCARGAR_OT inicio=2026-11-09 fin=2026-11-09 horas=1 columnas=numero]]');
+    assert.equal(horas.pedido.horas, 1);
+    assert.equal(horas.pedido.inicio, '2026-11-09');
   });
 
   it('resuelve alias de orden de venta y estado actual', () => {

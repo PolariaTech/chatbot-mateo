@@ -1,4 +1,5 @@
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const INSTANTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export const COLUMNAS_OV = [
   { clave: 'numero', etiqueta: 'Número', campo: 'numero_orden', grupo: 'orden', alias: ['numero', 'número', 'folio', 'codigo', 'código', 'numero de orden', 'número de orden'] },
@@ -67,8 +68,38 @@ export function periodoValido(inicio, fin) {
 }
 
 function leerCampo(cuerpo, nombre) {
-  const match = String(cuerpo || '').match(new RegExp(`${nombre}=(.+?)(?=\\s+\\w+=|$)`, 'i'));
+  const match = String(cuerpo || '').match(new RegExp(`(?:^|\\s)${nombre}=(.+?)(?=\\s+\\w+=|$)`, 'i'));
   return match ? match[1].trim() : '';
+}
+
+export function ventanaDeValores(horas, horaInicio, horaFin) {
+  const inicio = String(horaInicio || '').trim();
+  const fin = String(horaFin || '').trim();
+  const textoHoras = horas == null || horas === '' ? '' : String(horas).trim();
+  if (!textoHoras && !inicio && !fin) return {};
+  if (inicio || fin) {
+    const desde = new Date(inicio);
+    const hasta = new Date(fin);
+    if (!INSTANTE.test(inicio) || !INSTANTE.test(fin) || Number.isNaN(desde.getTime()) || desde > hasta) {
+      return { error: 'Indica un rango de horas válido.' };
+    }
+    return { horaInicio: inicio, horaFin: fin };
+  }
+  const cantidad = Number(textoHoras);
+  if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 168) {
+    return { error: 'Indica las horas, de 1 a 168.' };
+  }
+  return { horas: cantidad };
+}
+
+export function ventanaDeMarca(cuerpo) {
+  return ventanaDeValores(leerCampo(cuerpo, 'horas'), leerCampo(cuerpo, 'hora_inicio'), leerCampo(cuerpo, 'hora_fin'));
+}
+
+export function textoVentana(pedido) {
+  if (pedido?.horaInicio && pedido?.horaFin) return ` hora_inicio=${pedido.horaInicio} hora_fin=${pedido.horaFin}`;
+  if (pedido?.horas) return ` horas=${pedido.horas}`;
+  return '';
 }
 
 function fechaDeMarca(cuerpo) {
@@ -91,8 +122,9 @@ function interpretar(cuerpo) {
   }
   const inicio = leerCampo(cuerpo, 'inicio') || leerCampo(cuerpo, 'fecha_inicio');
   const fin = leerCampo(cuerpo, 'fin') || leerCampo(cuerpo, 'fecha_fin');
-  if (!periodoValido(inicio, fin)) return null;
-  return pedidoDeColumnas(resuelto, { todo: false, inicio, fin, fecha: fechaDeMarca(cuerpo) });
+  const ventana = ventanaDeMarca(cuerpo);
+  if (!periodoValido(inicio, fin) || ventana.error) return null;
+  return pedidoDeColumnas(resuelto, { todo: false, inicio, fin, fecha: fechaDeMarca(cuerpo), ...ventana });
 }
 
 export function leerDescargaOv(texto) {
@@ -112,7 +144,7 @@ export function marcarDescarga(texto, pedido) {
   if (pedido.todo) return `${base}\n[[DESCARGAR_OV todo=si columnas=${claves}]]`.trim();
   if (!pedido.inicio || !pedido.fin) return base;
   const fecha = pedido.fecha === 'creacion' ? ' fecha=creacion' : '';
-  return `${base}\n[[DESCARGAR_OV inicio=${pedido.inicio} fin=${pedido.fin}${fecha} columnas=${claves}]]`.trim();
+  return `${base}\n[[DESCARGAR_OV inicio=${pedido.inicio} fin=${pedido.fin}${textoVentana(pedido)}${fecha} columnas=${claves}]]`.trim();
 }
 
 function claveOrden(fila) {
@@ -186,6 +218,8 @@ export async function leerPedidoDescarga(request) {
   const fin = String(body.fecha_fin || '');
   const todo = body.todo === true || String(body.todo || '').toLowerCase() === 'si';
   const fecha = String(body.fecha || '').toLowerCase() === 'creacion' ? 'creacion' : 'pedido';
+  const ventana = ventanaDeValores(body.horas, body.hora_inicio, body.hora_fin);
+  if (ventana.error) return { error: ventana.error };
   if (!todo && !periodoValido(inicio, fin)) return { error: 'Indica un periodo válido (inicio y fin).' };
 
   const texto = Array.isArray(body.columnas) ? body.columnas.join(',') : body.columnas;
@@ -196,6 +230,7 @@ export async function leerPedidoDescarga(request) {
     inicio: todo ? null : inicio,
     fin: todo ? null : fin,
     fecha,
+    ...ventana,
     columnas: columnas.map((columna) => columna.clave),
   };
 }

@@ -88,6 +88,18 @@ describe('descarga de órdenes', () => {
     assert.equal(filas[0].Total, 25);
   });
 
+  it('lee las últimas horas y un rango, y no confunde la hora con el día', () => {
+    const horas = leerDescargaOv('[[DESCARGAR_OV inicio=2026-11-09 fin=2026-11-09 horas=12 fecha=creacion columnas=numero]]');
+    assert.equal(horas.pedido.inicio, '2026-11-09');
+    assert.equal(horas.pedido.horas, 12);
+    assert.equal(horas.pedido.horaInicio, undefined);
+    const rango = leerDescargaOv('[[DESCARGAR_OV inicio=2026-11-09 fin=2026-11-09 hora_inicio=2026-11-09T08:00:00-05:00 hora_fin=2026-11-09T12:00:00-05:00 columnas=numero]]');
+    assert.equal(rango.pedido.horaInicio, '2026-11-09T08:00:00-05:00');
+    assert.equal(rango.pedido.horaFin, '2026-11-09T12:00:00-05:00');
+    assert.equal(marcarDescarga(rango.texto, rango.pedido).includes('hora_inicio=2026-11-09T08:00:00-05:00'), true);
+    assert.equal(leerDescargaOv('[[DESCARGAR_OV inicio=2026-11-09 fin=2026-11-09 horas=0 columnas=numero]]').pedido, null);
+  });
+
   it('guarda la marca de creación y la de todo el historial', () => {
     const creacion = leerDescargaOv('[[DESCARGAR_OV inicio=2026-10-01 fin=2026-10-31 fecha=creacion columnas=id,cliente,creacion,entrega,total]]');
     assert.equal(creacion.pedido.fecha, 'creacion');

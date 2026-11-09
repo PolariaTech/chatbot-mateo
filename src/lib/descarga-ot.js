@@ -1,4 +1,4 @@
-import { normalizar, periodoValido } from './descarga-ov.js';
+import { normalizar, periodoValido, textoVentana, ventanaDeMarca, ventanaDeValores } from './descarga-ov.js';
 
 export const COLUMNAS_OT = [
   {
@@ -126,7 +126,7 @@ export function resolverColumnasOt(texto) {
 }
 
 function leerCampo(cuerpo, nombre) {
-  const match = String(cuerpo || '').match(new RegExp(`${nombre}=(.+?)(?=\\s+\\w+=|$)`, 'i'));
+  const match = String(cuerpo || '').match(new RegExp(`(?:^|\\s)${nombre}=(.+?)(?=\\s+\\w+=|$)`, 'i'));
   return match ? match[1].trim() : '';
 }
 
@@ -135,11 +135,13 @@ function interpretar(cuerpo) {
   if (!resuelto.columnas.length) return null;
   const inicio = leerCampo(cuerpo, 'inicio') || leerCampo(cuerpo, 'fecha_inicio');
   const fin = leerCampo(cuerpo, 'fin') || leerCampo(cuerpo, 'fecha_fin');
-  if (!periodoValido(inicio, fin)) return null;
+  const ventana = ventanaDeMarca(cuerpo);
+  if (!periodoValido(inicio, fin) || ventana.error) return null;
   return {
     tipo: 'ot',
     inicio,
     fin,
+    ...ventana,
     columnas: resuelto.columnas.map((columna) => columna.clave),
     desconocidas: resuelto.desconocidas,
   };
@@ -159,7 +161,7 @@ export function marcarDescargaOt(texto, pedido) {
   const base = String(texto || '').trim();
   if (!pedido?.columnas?.length || !pedido.inicio || !pedido.fin) return base;
   const claves = pedido.columnas.map((columna) => columna.clave || columna).join(',');
-  return `${base}\n[[DESCARGAR_OT inicio=${pedido.inicio} fin=${pedido.fin} columnas=${claves}]]`.trim();
+  return `${base}\n[[DESCARGAR_OT inicio=${pedido.inicio} fin=${pedido.fin}${textoVentana(pedido)} columnas=${claves}]]`.trim();
 }
 
 function enriquecerFila(fila) {
@@ -205,6 +207,8 @@ export async function leerPedidoDescargaOt(request) {
 
   const inicio = String(body.fecha_inicio || body.inicio || '');
   const fin = String(body.fecha_fin || body.fin || '');
+  const ventana = ventanaDeValores(body.horas, body.hora_inicio, body.hora_fin);
+  if (ventana.error) return { error: ventana.error };
   if (!periodoValido(inicio, fin)) return { error: 'Indica un periodo válido (inicio y fin).' };
 
   const texto = Array.isArray(body.columnas) ? body.columnas.join(',') : body.columnas;
@@ -214,6 +218,7 @@ export async function leerPedidoDescargaOt(request) {
     tipo: 'ot',
     inicio,
     fin,
+    ...ventana,
     columnas: columnas.map((columna) => columna.clave),
   };
 }

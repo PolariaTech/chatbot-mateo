@@ -27,6 +27,9 @@ export async function POST(request) {
       fechaInicio: pedido.inicio,
       fechaFin: pedido.fin,
       fecha: pedido.fecha,
+      horas: pedido.horas,
+      horaInicio: pedido.horaInicio,
+      horaFin: pedido.horaFin,
     });
     const filas = filasParaExcel(lineas, pedido.columnas);
     if (!filas.length) return errorJson('No hay órdenes en ese periodo.', 404);

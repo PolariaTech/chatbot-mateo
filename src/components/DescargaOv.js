@@ -19,12 +19,18 @@ async function pedirArchivo(pedido, accessToken) {
     body: JSON.stringify(esOt ? {
       fecha_inicio: pedido.inicio,
       fecha_fin: pedido.fin,
+      horas: pedido.horas,
+      hora_inicio: pedido.horaInicio,
+      hora_fin: pedido.horaFin,
       columnas: pedido.columnas,
     } : {
       fecha_inicio: pedido.inicio,
       fecha_fin: pedido.fin,
       fecha: pedido.fecha,
       todo: Boolean(pedido.todo),
+      horas: pedido.horas,
+      hora_inicio: pedido.horaInicio,
+      hora_fin: pedido.horaFin,
       columnas: pedido.columnas,
     }),
   });

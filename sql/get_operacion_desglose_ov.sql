@@ -5,10 +5,17 @@
 -- Ejemplo de uso:
 --   SELECT * FROM emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(DATE '2026-10-31', DATE '2026-10-31');
 --   SELECT * FROM emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(...) WHERE numero_orden ILIKE '%OV-00001402%';
+-- p_horas y el rango son opcionales. Sin ellos, el corte sigue siendo el día del pedido.
+
+DROP FUNCTION IF EXISTS emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(date, date);
+DROP FUNCTION IF EXISTS emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(date, date, integer);
 
 CREATE OR REPLACE FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(
   p_fecha_inicio date,
-  p_fecha_fin date
+  p_fecha_fin date,
+  p_horas integer DEFAULT NULL,
+  p_hora_inicio timestamp with time zone DEFAULT NULL,
+  p_hora_fin timestamp with time zone DEFAULT NULL
 )
 RETURNS TABLE (
   numero_orden text,
@@ -52,8 +59,18 @@ AS $$
       AND p_fecha_fin IS NOT NULL
       AND p_fecha_inicio <= p_fecha_fin
       AND ov.estado IS DISTINCT FROM 'cancelada'
-      AND ov.fecha_pedido >= p_fecha_inicio
-      AND ov.fecha_pedido < (p_fecha_fin + 1)
+      AND (
+        CASE
+          WHEN p_hora_inicio IS NOT NULL AND p_hora_fin IS NOT NULL THEN
+            ov.created_at >= p_hora_inicio AND ov.created_at <= p_hora_fin
+          WHEN p_horas IS NOT NULL AND p_horas > 0 THEN
+            ov.created_at >= now() - make_interval(hours => LEAST(p_horas, 168))
+            AND ov.created_at <= now()
+          ELSE
+            ov.fecha_pedido >= p_fecha_inicio
+            AND ov.fecha_pedido < (p_fecha_fin + 1)
+        END
+      )
   ),
   por_ot AS (
     SELECT
@@ -163,5 +180,5 @@ AS $$
   ORDER BY 2, 1, 4, 5, 7
 $$;
 
-GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(date, date)
+GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_desglose_ov(date, date, integer, timestamp with time zone, timestamp with time zone)
   TO service_role, authenticator, anon, authenticated;

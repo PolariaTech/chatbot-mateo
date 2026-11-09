@@ -5,10 +5,17 @@
 -- SLA provisional, quemado en 1 día. Ver el bloque "etapa".
 -- Ciclo por etapa, límites quemados: 60 min, 60 min y 2 h. Ver el bloque "ciclo".
 -- Pegar en el SQL Editor y correr todo de una vez.
+-- p_horas y el rango son opcionales. Sin ellos, el corte sigue siendo el día del pedido.
+
+DROP FUNCTION IF EXISTS emp_jbr_cygnus_y9ihz.get_operacion_ordenes(date, date);
+DROP FUNCTION IF EXISTS emp_jbr_cygnus_y9ihz.get_operacion_ordenes(date, date, integer);
 
 CREATE OR REPLACE FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_ordenes(
   p_fecha_inicio date,
-  p_fecha_fin date
+  p_fecha_fin date,
+  p_horas integer DEFAULT NULL,
+  p_hora_inicio timestamp with time zone DEFAULT NULL,
+  p_hora_fin timestamp with time zone DEFAULT NULL
 )
 RETURNS TABLE (
   seccion text,
@@ -33,8 +40,18 @@ AS $$
       ov.estado_desde
     FROM emp_jbr_cygnus_y9ihz.orden_venta ov
     WHERE ov.estado IS DISTINCT FROM 'cancelada'
-      AND ov.fecha_pedido >= p_fecha_inicio
-      AND ov.fecha_pedido < (p_fecha_fin + 1)
+      AND (
+        CASE
+          WHEN p_hora_inicio IS NOT NULL AND p_hora_fin IS NOT NULL THEN
+            ov.created_at >= p_hora_inicio AND ov.created_at <= p_hora_fin
+          WHEN p_horas IS NOT NULL AND p_horas > 0 THEN
+            ov.created_at >= now() - make_interval(hours => LEAST(p_horas, 168))
+            AND ov.created_at <= now()
+          ELSE
+            ov.fecha_pedido >= p_fecha_inicio
+            AND ov.fecha_pedido < (p_fecha_fin + 1)
+        END
+      )
   ),
   lineas AS MATERIALIZED (
     SELECT
@@ -624,12 +641,18 @@ AS $$
   GROUP BY r.etapa, 3
 $$;
 
-GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_ordenes(date, date)
+GRANT EXECUTE ON FUNCTION emp_jbr_cygnus_y9ihz.get_operacion_ordenes(date, date, integer, timestamp with time zone, timestamp with time zone)
   TO service_role, authenticator, anon, authenticated;
+
+DROP FUNCTION IF EXISTS public.get_operacion_ordenes(date, date);
+DROP FUNCTION IF EXISTS public.get_operacion_ordenes(date, date, integer);
 
 CREATE OR REPLACE FUNCTION public.get_operacion_ordenes(
   p_fecha_inicio date,
-  p_fecha_fin date
+  p_fecha_fin date,
+  p_horas integer DEFAULT NULL,
+  p_hora_inicio timestamp with time zone DEFAULT NULL,
+  p_hora_fin timestamp with time zone DEFAULT NULL
 )
 RETURNS TABLE (
   seccion text,
@@ -654,8 +677,18 @@ AS $$
       ov.estado_desde
     FROM public.orden_venta ov
     WHERE ov.estado IS DISTINCT FROM 'cancelada'
-      AND ov.fecha_pedido >= p_fecha_inicio
-      AND ov.fecha_pedido < (p_fecha_fin + 1)
+      AND (
+        CASE
+          WHEN p_hora_inicio IS NOT NULL AND p_hora_fin IS NOT NULL THEN
+            ov.created_at >= p_hora_inicio AND ov.created_at <= p_hora_fin
+          WHEN p_horas IS NOT NULL AND p_horas > 0 THEN
+            ov.created_at >= now() - make_interval(hours => LEAST(p_horas, 168))
+            AND ov.created_at <= now()
+          ELSE
+            ov.fecha_pedido >= p_fecha_inicio
+            AND ov.fecha_pedido < (p_fecha_fin + 1)
+        END
+      )
   ),
   lineas AS MATERIALIZED (
     SELECT
@@ -1245,7 +1278,7 @@ AS $$
   GROUP BY r.etapa, 3
 $$;
 
-GRANT EXECUTE ON FUNCTION public.get_operacion_ordenes(date, date)
+GRANT EXECUTE ON FUNCTION public.get_operacion_ordenes(date, date, integer, timestamp with time zone, timestamp with time zone)
   TO service_role, authenticator, anon, authenticated;
 
 CREATE INDEX IF NOT EXISTS idx_auditoria_orden_venta
