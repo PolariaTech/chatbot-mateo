@@ -2319,9 +2319,9 @@ button.message-report-link--embed:hover {
 /* Composer — Mateo Support */
 footer.composer {
   position: relative;
-  height: var(--chrome-footer-h);
+  height: auto;
   min-height: var(--chrome-footer-h);
-  padding: 0 12px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2367,9 +2367,11 @@ footer.composer .composer-inner:focus-within {
   background: var(--w08);
 }
 
-footer.composer input {
+footer.composer .composer-textarea {
   flex: 1;
   min-width: 0;
+  min-height: 19px;
+  max-height: 160px;
   padding: 3px 0;
   border: none;
   border-radius: 0;
@@ -2380,9 +2382,12 @@ footer.composer input {
   line-height: 19px;
   font-weight: 400;
   font-family: Inter, system-ui, sans-serif;
+  resize: none;
+  overflow-y: hidden;
+  field-sizing: content;
 }
 
-footer.composer input::placeholder {
+footer.composer .composer-textarea::placeholder {
   color: rgba(248, 248, 246, 0.3);
 }
 
@@ -2522,9 +2527,9 @@ footer.composer .composer-send:disabled {
   }
 
   footer.composer {
-    height: calc(var(--chrome-footer-h) + env(safe-area-inset-bottom));
+    height: auto;
     min-height: calc(var(--chrome-footer-h) + env(safe-area-inset-bottom));
-    padding: 0 16px env(safe-area-inset-bottom);
+    padding: 8px 16px env(safe-area-inset-bottom);
   }
 }
 
@@ -2663,7 +2668,7 @@ footer.composer .composer-send:disabled {
   }
 
   footer.composer {
-    padding: 0 12px env(safe-area-inset-bottom);
+    padding: 8px 12px env(safe-area-inset-bottom);
   }
 
   footer.composer .composer-inner {

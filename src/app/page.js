@@ -10,6 +10,7 @@ import { useChat } from '../hooks/useChat';
 import RouteChoice from '../components/RouteChoice';
 import ChatThread from '../components/ChatThread';
 import ChatSidebar from '../components/ChatSidebar';
+import ComposerInput from '../components/ComposerInput';
 import EmbedPanel, { extractFirstUrl } from '../components/EmbedPanel';
 import { registerEmbedUrl, releaseEmbedUrl } from '../lib/embed-registry';
 import { getDisplayInitial, getDisplayName } from '../lib/display-name';
@@ -20,7 +21,6 @@ export default function Home() {
   const [showLogoutForm, setShowLogoutForm] = useState(false);
   const [embed, setEmbed] = useState(null);
   const chatEndRef = useRef(null);
-  const inputRef = useRef(null);
   const lastAutoEmbedRef = useRef(null);
 
   const { user, accessToken, isAuthenticated, isReady, logout, applySession } = useAuth();
@@ -117,7 +117,8 @@ export default function Home() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       enviarMensaje();
     }
   };
@@ -262,14 +263,10 @@ export default function Home() {
                 <path d="M7 2.33363V9.33363" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.225" />
               </svg>
             </button>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Escribe tu mensaje..."
+            <ComposerInput
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              aria-label="Escribe tu mensaje"
             />
             <button
               className="composer-send"
