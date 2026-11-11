@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-default-type=module test/run.js"
+    "test": "node test/run.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

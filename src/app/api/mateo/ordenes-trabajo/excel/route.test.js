@@ -25,7 +25,7 @@ describe('POST excel de órdenes de trabajo', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
     globalThis.fetch = async (url) => {
-      if (String(url).includes('/rpc/get_operacion_desglose_ov')) {
+      if (String(url).includes('/rpc/get_sabana_pedidos')) {
         return new Response(JSON.stringify([
           {
             numero_orden: 'OV-1',

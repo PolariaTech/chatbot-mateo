@@ -1,6 +1,6 @@
 import { normalizar, periodoValido } from './descarga-ov.js';
 import { COLUMNAS_OT, resolverColumnasOt } from './descarga-ot.js';
-import { pedidoDesdeTexto as periodoOvDesdeTexto } from './descarga-ov-pedido.js';
+import { pedidoDesdeTexto as periodoOvDesdeTexto, tieneNumeroDeOrden } from './descarga-ov-pedido.js';
 
 const MESES = {
   enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
@@ -96,6 +96,7 @@ export function pedidoOtDesdeTexto(texto, hoy = new Date()) {
 }
 
 export function pedidoOtDelTurno(marca, texto, hoy = new Date()) {
+  if (tieneNumeroDeOrden(texto)) return null;
   const delUsuario = pedidoOtDesdeTexto(texto, hoy);
   if (delUsuario) return delUsuario;
   return marca?.tipo === 'ot' ? marca : null;

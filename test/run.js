@@ -18,7 +18,7 @@ async function buscarPruebas(carpeta) {
 const files = await buscarPruebas(path.resolve('src'))
 run({
   files,
-  execArgv: ['--experimental-default-type=module', '--import', './test/register.js'],
+  execArgv: ['--import', './test/register.js'],
 })
   .on('test:fail', () => {
     process.exitCode = 1

@@ -18,6 +18,8 @@ export const COLUMNAS_OV = [
   { clave: 'producto', etiqueta: 'Producto', campo: 'producto', grupo: 'detalle', alias: ['producto', 'productos', 'descripcion', 'descripción', 'sku', 'codigo producto', 'código producto'] },
   { clave: 'unidad', etiqueta: 'Unidad', campo: 'unidad', grupo: 'detalle', alias: ['unidad', 'um', 'unidad de medida'] },
   { clave: 'precio', etiqueta: 'Precio', campo: 'precio', grupo: 'detalle', alias: ['precio', 'precio unitario'] },
+  { clave: 'cantidad_ot', etiqueta: 'Cantidad de órdenes de trabajo', campo: 'cantidad_ot', grupo: 'orden', alias: ['cantidad de ot', 'cantidad de ordenes de trabajo', 'cantidad de órdenes de trabajo', 'ot_count'] },
+  { clave: 'productos_distintos', etiqueta: 'Cantidad de productos distintos', campo: 'productos_distintos', grupo: 'orden', alias: ['productos distintos', 'cantidad de productos distintos', 'sku distintos', 'sku_distintos'] },
 ];
 
 const COLUMNAS_POR_DEFECTO = COLUMNAS_OV.map((columna) => columna.clave);

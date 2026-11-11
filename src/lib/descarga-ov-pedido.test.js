@@ -22,6 +22,20 @@ describe('pedido de descarga desde el texto', () => {
     assert.equal(pedidoDesdeTexto('extrae un csv de las órdenes', hoy), null);
   });
 
+  it('no arma Excel si piden un pedido OT por número', () => {
+    const pregunta = 'Dame el listado de todos los pedido OT número 4502991496';
+    assert.equal(pedidoDesdeTexto(pregunta, hoy), null);
+    const marca = {
+      todo: false,
+      inicio: '2000-01-01',
+      fin: '2099-12-31',
+      fecha: 'creacion',
+      columnas: ['numero', 'cliente'],
+      desconocidas: [],
+    };
+    assert.equal(pedidoDelTurno(marca, pregunta, [], hoy), null);
+  });
+
   it('toma todas las órdenes desde el 1 de enero de 2000', () => {
     const pedido = pedidoDesdeTexto('dame todas las órdenes', hoy);
     assert.equal(pedido.inicio, '2000-01-01');

@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../../lib/supabase-server';
 import { resolveReportesSchema } from '../../../../../lib/reportes-schema';
-import { filasOtParaExcel, leerPedidoDescargaOt } from '../../../../../lib/descarga-ot';
-import { consultarDesgloseOv } from '../../../../../lib/descarga-ot-consulta';
-import { libroOt, nombreArchivoOt } from '../../../../../lib/descarga-ot-excel';
+import { leerPedidoDescargaOt } from '../../../../../lib/descarga-ot';
+import { nombreArchivoOt } from '../../../../../lib/descarga-ot-excel';
+import { consultarSabanaPedidos } from '../../../../../lib/sabana-pedidos-consulta';
+import { libroSabana } from '../../../../../lib/sabana-pedidos-excel';
+import { filasSabana } from '../../../../../lib/sabana-pedidos';
 
 export const maxDuration = 60;
 
@@ -22,18 +24,19 @@ export async function POST(request) {
   if (pedido.error) return errorJson(pedido.error, 400);
 
   try {
-    const lineas = await consultarDesgloseOv({
+    const lineas = await consultarSabanaPedidos({
       schema: resolveReportesSchema(auth.user.codigoEmpresa),
       fechaInicio: pedido.inicio,
       fechaFin: pedido.fin,
+      fecha: 'pedido',
       horas: pedido.horas,
       horaInicio: pedido.horaInicio,
       horaFin: pedido.horaFin,
     });
-    const filas = filasOtParaExcel(lineas, pedido.columnas);
+    const filas = filasSabana(lineas, pedido.columnas);
     if (!filas.length) return errorJson('No hay órdenes de trabajo ni desglose por almacén en ese periodo.', 404);
     const nombre = nombreArchivoOt(pedido.inicio, pedido.fin);
-    return new NextResponse(libroOt(filas), {
+    return new NextResponse(libroSabana(filas), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${nombre}"`,

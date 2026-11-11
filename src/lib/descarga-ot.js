@@ -91,6 +91,18 @@ export const COLUMNAS_OT = [
     campo: 'destino',
     alias: ['destino'],
   },
+  {
+    clave: 'cantidad_ot',
+    etiqueta: 'Cantidad de órdenes de trabajo',
+    campo: 'cantidad_ot',
+    alias: ['cantidad de ot', 'cantidad de ordenes de trabajo', 'ot_count'],
+  },
+  {
+    clave: 'productos_distintos',
+    etiqueta: 'Cantidad de productos distintos',
+    campo: 'productos_distintos',
+    alias: ['productos distintos', 'cantidad de productos distintos', 'sku distintos', 'sku_distintos'],
+  },
 ];
 
 const COLUMNAS_POR_DEFECTO = COLUMNAS_OT.map((columna) => columna.clave);

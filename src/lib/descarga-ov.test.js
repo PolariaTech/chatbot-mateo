@@ -17,6 +17,7 @@ describe('descarga de órdenes', () => {
     assert.deepEqual(resuelto.columnas.map((columna) => columna.clave), [
       'numero', 'fecha', 'estado', 'orden_compra', 'centro', 'comprador', 'cliente', 'id',
       'creacion', 'entrega', 'cantidad', 'importe', 'total', 'producto', 'unidad', 'precio',
+      'cantidad_ot', 'productos_distintos',
     ]);
   });
 

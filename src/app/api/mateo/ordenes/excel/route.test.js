@@ -40,7 +40,7 @@ describe('POST excel de órdenes', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
     globalThis.fetch = async (url, init) => {
-      if (String(url).includes('/rpc/get_export_ordenes')) {
+      if (String(url).includes('/rpc/get_sabana_pedidos')) {
         const cuerpo = JSON.parse(init.body);
         const filas = cuerpo.p_fecha_inicio === '2026-01-01' ? [] : [LINEA];
         return new Response(JSON.stringify(filas), {

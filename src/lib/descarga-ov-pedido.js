@@ -120,7 +120,14 @@ function mesNombrado(normal, hoy) {
 const INICIO_TODAS = '2000-01-01';
 const FIN_TODAS = '2099-12-31';
 
+export function tieneNumeroDeOrden(texto) {
+  const normal = normalizar(texto);
+  if (/\b(?:ov|ot)[\s-]*\d{3,}\b/.test(normal)) return true;
+  return /\b\d{8,}\b/.test(normal);
+}
+
 function pideTodas(normal) {
+  if (tieneNumeroDeOrden(normal)) return false;
   return /\b(todas|todos|todo)\b/.test(normal) && /\b(ov|orden|ordenes|pedido|pedidos)\b/.test(normal);
 }
 
@@ -161,6 +168,7 @@ function periodoDeTexto(texto, hoy) {
 
 export function pedidoDesdeTexto(texto, hoy = new Date()) {
   const normal = normalizar(texto);
+  if (tieneNumeroDeOrden(normal)) return null;
   const periodo = leerPeriodo(normal, hoy) || mesNombrado(normal, hoy);
   if (periodo && (pideArchivo(normal) || mencionaOrdenes(normal))) return periodo;
   if (!pideArchivo(normal)) return null;
@@ -207,6 +215,7 @@ function conColumnasDeMarca(pedido, marca, texto, anteriores) {
 }
 
 export function pedidoDelTurno(marca, texto, anteriores, hoy = new Date()) {
+  if (tieneNumeroDeOrden(texto)) return null;
   const delUsuario = pedidoDesdeConversacion(texto, anteriores, hoy);
   const pedido = conColumnasDeMarca(delUsuario || marca || null, marca, texto, anteriores);
   if (!pedido || indicoAnio(texto, anteriores)) return pedido;

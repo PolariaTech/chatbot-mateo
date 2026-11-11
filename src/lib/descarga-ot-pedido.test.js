@@ -40,6 +40,19 @@ describe('pedido OT desde texto', () => {
     assert.ok(pedido.columnas.length >= 10);
   });
 
+  it('no arma Excel si piden un pedido OT por número', () => {
+    const pregunta = 'Dame el listado de todos los pedido OT número 4502991496';
+    assert.equal(pedidoOtDesdeTexto(pregunta, hoy), null);
+    const marca = {
+      tipo: 'ot',
+      inicio: '2000-01-01',
+      fin: '2099-12-31',
+      columnas: ['numero', 'referencia'],
+      desconocidas: [],
+    };
+    assert.equal(pedidoOtDelTurno(marca, pregunta, hoy), null);
+  });
+
   it('respeta la marca del agente si el usuario no pide archivo OT', () => {
     const marca = {
       tipo: 'ot',
