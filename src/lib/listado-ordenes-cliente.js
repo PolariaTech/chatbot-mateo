@@ -28,16 +28,20 @@ export async function pedirListado(accessToken, fechaInicio, fechaFin, tipoFecha
 }
 
 export async function pedirProductosOrden(accessToken, numero) {
-  const respuesta = await fetch('/api/ordenesventa/listado/productos', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ numero }),
-  });
-  const cuerpo = await respuesta.json().catch(() => ({}));
-  if (!respuesta.ok || !cuerpo.success) {
-    return { status: respuesta.status, error: cuerpo.error || 'No se pudieron leer los productos.', productos: [] };
+  try {
+    const respuesta = await fetch('/api/ordenesventa/listado/productos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ numero }),
+    });
+    const cuerpo = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok || !cuerpo.success) {
+      return { status: respuesta.status, error: cuerpo.error || 'No se pudieron leer los productos.', productos: [] };
+    }
+    return { status: respuesta.status, error: '', productos: cuerpo.productos || [] };
+  } catch (error) {
+    return { status: 0, error: error?.message || 'No se pudieron leer los productos.', productos: [] };
   }
-  return { status: respuesta.status, error: '', productos: cuerpo.productos || [] };
 }
 
 export async function pedirExcelListado(accessToken, fechaInicio, fechaFin, tipoFecha, descarga = 'ov') {

@@ -214,14 +214,23 @@ export function ListadoOrdenesPeriodo({ accessToken, fechaInicio, fechaFin, tipo
       return;
     }
     setDetalle({ numero: fila.numero, grupos: [], cargando: true, error: '' });
-    const resultado = await pedirProductosOrden(accessToken, fila.numero);
-    if (resultado.status === 401) onSessionInvalid?.();
-    setDetalle({
-      numero: fila.numero,
-      grupos: gruposPorCentro(resultado.productos),
-      cargando: false,
-      error: resultado.error,
-    });
+    try {
+      const resultado = await pedirProductosOrden(accessToken, fila.numero);
+      if (resultado.status === 401) onSessionInvalid?.();
+      setDetalle({
+        numero: fila.numero,
+        grupos: gruposPorCentro(resultado.productos),
+        cargando: false,
+        error: resultado.error,
+      });
+    } catch (error) {
+      setDetalle({
+        numero: fila.numero,
+        grupos: [],
+        cargando: false,
+        error: error?.message || 'No se pudieron leer los productos.',
+      });
+    }
   }
 
   async function descargar() {

@@ -22,8 +22,8 @@ function isoDesdeFechaLocal(date) {
 }
 
 function hoyLocal() {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const ahora = new Date();
+  return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
 }
 
 function fechasSemanasHastaHoy(cantidadSemanas) {

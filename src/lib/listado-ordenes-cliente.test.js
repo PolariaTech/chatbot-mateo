@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
-import { pedirExcelListado, pedirListado } from './listado-ordenes-cliente.js';
+import { pedirExcelListado, pedirListado, pedirProductosOrden } from './listado-ordenes-cliente.js';
 
 const fetchOriginal = globalThis.fetch;
 
@@ -28,5 +28,15 @@ describe('cliente del listado', () => {
     const excel = await pedirExcelListado('token', '2026-11-01', '2026-11-06', 'entrega', 'ot');
     assert.equal(excel.status, 200);
     assert.equal(excel.bytes.byteLength, 2);
+  });
+
+  it('devuelve el error si falla la red al pedir los productos', async () => {
+    globalThis.fetch = async () => {
+      throw new Error('red caída');
+    };
+    const resultado = await pedirProductosOrden('token', 'OV-00001842');
+    assert.equal(resultado.status, 0);
+    assert.equal(resultado.error, 'red caída');
+    assert.deepEqual(resultado.productos, []);
   });
 });
