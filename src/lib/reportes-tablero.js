@@ -120,15 +120,6 @@ export async function consultarDetalleOrdenes({ schema, fechaInicio, fechaFin })
   });
 }
 
-export async function consultarOperacionOrdenes({ schema, fechaInicio, fechaFin }) {
-  return consultarRpcFechas({
-    schema,
-    rpcName: 'get_operacion_ordenes',
-    fechaInicio,
-    fechaFin,
-  });
-}
-
 export async function consultarTableroSkuRpc({ schema, fechaInicio, fechaFin }) {
   try {
     return await consultarRpcFechas({

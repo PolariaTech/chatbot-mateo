@@ -3,6 +3,7 @@ import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
 import { resolveReportesSchema } from '../../../../lib/reportes-schema';
 import { leerCuerpo, validarPeriodo } from '../../../../lib/listado-ordenes';
+import { errorTipoFecha, tipoFechaOperacion } from '../../../../lib/tipo-fecha-operacion';
 import { consultarListadoOrdenes } from '../../../../lib/listado-ordenes-consulta';
 
 function errorJson(error, status) {
@@ -16,12 +17,15 @@ export async function POST(request) {
   const body = await leerCuerpo(request);
   const errorPeriodo = validarPeriodo(body.fecha_inicio, body.fecha_fin);
   if (errorPeriodo) return errorJson(errorPeriodo, 400);
+  const errorTipo = errorTipoFecha(body.tipo_fecha);
+  if (errorTipo) return errorJson(errorTipo, 400);
 
   try {
     const resultado = await consultarListadoOrdenes({
       schema: resolveReportesSchema(auth.user.codigoEmpresa),
       fechaInicio: body.fecha_inicio,
       fechaFin: body.fecha_fin,
+      tipoFecha: tipoFechaOperacion(body.tipo_fecha),
       limite: 300,
     });
     return NextResponse.json({ success: true, ordenes: resultado.ordenes, total: resultado.total });

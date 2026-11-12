@@ -25,6 +25,18 @@ describe('POST excel del listado', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
     globalThis.fetch = async (url, init) => {
+      if (String(url).includes('/rpc/get_detalle_ot_ordenes')) {
+        return new Response(JSON.stringify([{
+          numero: 'OV-9',
+          cliente: 'Hotel',
+          estado: 'facturada',
+          orden_trabajo: 'Velas',
+          codigo_producto: '115001400',
+          producto: 'Limón',
+          cantidad: 10,
+          importe: 50,
+        }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       if (String(url).includes('/rpc/get_listado_ordenes')) {
         const cuerpo = JSON.parse(init.body);
         const filas = cuerpo.p_fecha_inicio === '2026-01-01' ? [] : [{
@@ -63,5 +75,21 @@ describe('POST excel del listado', () => {
     assert.match(conDatos.headers.get('Content-Disposition'), /ordenes_2026-11-01_2026-11-06\.xlsx/);
     const vacio = await POST(solicitud({ fecha_inicio: '2026-01-01', fecha_fin: '2026-01-02' }));
     assert.equal(vacio.status, 404);
+  });
+
+  it('arma el excel con los productos de cada orden de trabajo', async () => {
+    const respuesta = await POST(solicitud({
+      fecha_inicio: '2026-11-01',
+      fecha_fin: '2026-11-06',
+      descarga: 'ot',
+    }));
+    assert.equal(respuesta.status, 200);
+    assert.match(respuesta.headers.get('Content-Disposition'), /ordenes_ot_2026-11-01_2026-11-06\.xlsx/);
+    const invalida = await POST(solicitud({
+      fecha_inicio: '2026-11-01',
+      fecha_fin: '2026-11-06',
+      descarga: 'pdf',
+    }));
+    assert.equal(invalida.status, 400);
   });
 });

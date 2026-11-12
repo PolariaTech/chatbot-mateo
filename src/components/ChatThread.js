@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import FormattedMessage from './FormattedMessage';
+import MessageBlocks from './MessageBlocks';
 import RouteChoice from './RouteChoice';
 import DescargaOv from './DescargaOv';
 
@@ -38,7 +38,7 @@ function MensajeIa({ msg, esUltimo, isSending, openEmbed, enviarMensaje, accessT
       <MateoSparkleAvatar />
       <div className="message-col">
         <div className="message-bubble">
-          <FormattedMessage text={msg.texto} onOpenEmbed={openEmbed} />
+          <MessageBlocks text={msg.texto} onOpenEmbed={openEmbed} />
         </div>
         {msg.descarga && <DescargaOv pedido={msg.descarga} accessToken={accessToken} />}
         {msg.createdAt && (

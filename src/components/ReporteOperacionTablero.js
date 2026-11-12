@@ -12,6 +12,14 @@ import {
   puntoTendencia,
 } from '../lib/ordenesventa-estados';
 import { ListadoOperacion, ListadoOrdenesPeriodo } from './ListadoOperacion';
+import {
+  RANGOS_PRESET,
+  dmyToIso,
+  esFechaIso,
+  fechasDePreset,
+  isoToDmy,
+} from '../lib/rango-operacion';
+import { TIPOS_FECHA_OPERACION } from '../lib/tipo-fecha-operacion';
 
 const COLUMNAS_ESTADO = [
   ['etiqueta', 'Estado'],
@@ -84,82 +92,11 @@ const CUBETAS_CICLO = [
 
 const COLORES = ['#2ee6a8', '#19e3c8', '#7ee9da', '#e6c84a', '#f3b3ad', '#8aa89c', '#4cc38a', '#c9d4d4'];
 
-const RANGOS_PRESET = [
-  { id: '1s', label: 'Última semana', semanas: 1 },
-  { id: '2s', label: 'Últimas 2 semanas', semanas: 2 },
-  { id: '3s', label: 'Últimas 3 semanas', semanas: 3 },
-  { id: '4s', label: 'Últimas 4 semanas', semanas: 4 },
-  { id: '1m', label: 'Último mes', meses: 1 },
-  { id: '3m', label: 'Últimos 3 meses', meses: 3 },
-  { id: '6m', label: 'Últimos 6 meses', meses: 6 },
-];
-
-function esFechaIso(valor) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(valor);
-}
-
 function aNumero(valor) {
   if (valor === null || valor === undefined || valor === '') return null;
   if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
   const n = Number(String(valor).replace(/,/g, ''));
   return Number.isFinite(n) ? n : null;
-}
-
-function isoDesdeFechaLocal(date) {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function hoyLocal() {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
-}
-
-function fechasSemanasHastaHoy(cantidadSemanas) {
-  const hoy = hoyLocal();
-  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - (cantidadSemanas * 7 - 1));
-  return { inicio: isoDesdeFechaLocal(inicio), fin: isoDesdeFechaLocal(hoy) };
-}
-
-function fechasMesesHastaHoy(cantidadMeses) {
-  const hoy = hoyLocal();
-  const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - (cantidadMeses - 1), 1);
-  return { inicio: isoDesdeFechaLocal(inicio), fin: isoDesdeFechaLocal(hoy) };
-}
-
-function fechasDePreset(presetId) {
-  const preset = RANGOS_PRESET.find((item) => item.id === presetId);
-  if (!preset) return null;
-  if (preset.semanas) return fechasSemanasHastaHoy(preset.semanas);
-  if (preset.meses) return fechasMesesHastaHoy(preset.meses);
-  return null;
-}
-
-function isoToDmy(iso) {
-  if (!esFechaIso(iso)) return '';
-  const [yyyy, mm, dd] = iso.split('-');
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-function dmyToIso(value) {
-  const match = String(value || '').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
-  if (!match) return null;
-  const dd = Number(match[1]);
-  const mm = Number(match[2]);
-  const yyyy = Number(match[3]);
-  const iso = `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-  const parsed = new Date(`${iso}T00:00:00`);
-  if (
-    Number.isNaN(parsed.getTime())
-    || parsed.getFullYear() !== yyyy
-    || parsed.getMonth() + 1 !== mm
-    || parsed.getDate() !== dd
-  ) {
-    return null;
-  }
-  return iso;
 }
 
 function formatoDinero(valor) {
@@ -188,6 +125,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
   const [fechaInicioTexto, setFechaInicioTexto] = useState(() => isoToDmy(inicial.inicio));
   const [fechaFinTexto, setFechaFinTexto] = useState(() => isoToDmy(inicial.fin));
   const [rangoPreset, setRangoPreset] = useState('1s');
+  const [tipoFecha, setTipoFecha] = useState('entrega');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [filas, setFilas] = useState(null);
@@ -236,6 +174,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
   async function cargarTablero(rangoFechas) {
     const inicio = rangoFechas?.inicio || fechaInicio;
     const fin = rangoFechas?.fin || fechaFin;
+    const tipo = rangoFechas?.tipo || tipoFecha;
     const cargaId = cargaIdRef.current + 1;
     cargaIdRef.current = cargaId;
     setErrorMessage('');
@@ -257,7 +196,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ fecha_inicio: inicio, fecha_fin: fin }),
+        body: JSON.stringify({ fecha_inicio: inicio, fecha_fin: fin, tipo_fecha: tipo }),
       });
       const data = await response.json().catch(() => ({}));
       if (cargaId !== cargaIdRef.current) return;
@@ -284,7 +223,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
       return undefined;
     }
     const rango = fechasDePreset('1s');
-    const t = setTimeout(() => cargarTablero(rango), 50);
+    const t = setTimeout(() => cargarTablero({ ...rango, tipo: 'entrega' }), 50);
     return () => clearTimeout(t);
   }, [accessToken]);
 
@@ -296,7 +235,13 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
     setFechaFin(rango.fin);
     setFechaInicioTexto(isoToDmy(rango.inicio));
     setFechaFinTexto(isoToDmy(rango.fin));
-    cargarTablero(rango);
+    cargarTablero({ ...rango, tipo: tipoFecha });
+  }
+
+  function elegirTipo(tipo) {
+    if (tipo === tipoFecha) return;
+    setTipoFecha(tipo);
+    cargarTablero({ inicio: fechaInicio, fin: fechaFin, tipo });
   }
 
   const hayDatos = aNumero(cortes.resumen?.ordenes) > 0;
@@ -316,6 +261,27 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
       <div className="rp-page">
         <div className="rp-container">
           <div className="rp-filtros">
+            <fieldset className="rp-rango-presets">
+              <legend>Tipo de fecha</legend>
+              <div className="rp-rango-presets-list" role="radiogroup" aria-label="Tipo de fecha">
+                {TIPOS_FECHA_OPERACION.map((item) => (
+                  <label
+                    key={item.id}
+                    className={`rp-rango-chip${tipoFecha === item.id ? ' rp-active' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="tipo-fecha-operacion"
+                      value={item.id}
+                      checked={tipoFecha === item.id}
+                      disabled={loading}
+                      onChange={() => elegirTipo(item.id)}
+                    />
+                    {item.etiqueta}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <fieldset className="rp-rango-presets">
               <legend>Rango rápido</legend>
               <div className="rp-rango-presets-list" role="radiogroup" aria-label="Rango de fechas">
@@ -475,7 +441,7 @@ export default function ReporteOperacionTablero({ accessToken, onSessionInvalid 
               <ListadoOperacion titulo="Productos más pedidos" columnas={COLUMNAS_PRODUCTO} filas={cortes.producto} nombre={`operacion_productos_${fechaInicio}_${fechaFin}.xlsx`} />
               <ListadoOperacion titulo="Por comprador" columnas={COLUMNAS_COMPRADOR} filas={cortes.comprador} nombre={`operacion_comprador_${fechaInicio}_${fechaFin}.xlsx`} />
               <ListadoOperacion titulo="Por centro de consumo" columnas={COLUMNAS_CENTRO} filas={cortes.centro} nombre={`operacion_centro_${fechaInicio}_${fechaFin}.xlsx`} />
-              <ListadoOrdenesPeriodo accessToken={accessToken} fechaInicio={fechaInicio} fechaFin={fechaFin} onSessionInvalid={onSessionInvalid} />
+              <ListadoOrdenesPeriodo accessToken={accessToken} fechaInicio={fechaInicio} fechaFin={fechaFin} tipoFecha={tipoFecha} onSessionInvalid={onSessionInvalid} />
               <ListadoOperacion titulo="Tiempo en el estado actual" columnas={COLUMNAS_EDAD} filas={cortes.edad} nombre={`operacion_edad_${fechaInicio}_${fechaFin}.xlsx`} />
               <ListadoOperacion titulo="Bitácora de la orden" columnas={COLUMNAS_EVENTO} filas={cortes.evento} nombre={`operacion_bitacora_${fechaInicio}_${fechaFin}.xlsx`} />
               <ListadoOperacion titulo="Hora del movimiento" columnas={COLUMNAS_HORA} filas={cortes.hora} nombre={`operacion_hora_${fechaInicio}_${fechaFin}.xlsx`} />

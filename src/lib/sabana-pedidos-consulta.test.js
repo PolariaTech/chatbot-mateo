@@ -29,6 +29,8 @@ describe('consulta de la sábana de pedidos', () => {
       assert.equal(cuerpo.p_fecha_fin, '2026-11-11');
       assert.equal(cuerpo.p_fecha, 'creacion');
       assert.equal(cuerpo.p_horas, 1);
+      assert.equal(cuerpo.p_desde, 0);
+      assert.equal(cuerpo.p_limite, 1000);
       return new Response(JSON.stringify([{ orden_venta: 'OV-00001842', producto: 'Aguacate' }]), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'content-range': '0-0/1' },
@@ -44,6 +46,30 @@ describe('consulta de la sábana de pedidos', () => {
     });
     assert.equal(filas.length, 1);
     assert.equal(filas[0].orden_venta, 'OV-00001842');
+  });
+
+  it('pide la página siguiente cuando la primera viene llena', async () => {
+    const pedidas = [];
+    globalThis.fetch = async (_url, init) => {
+      const cuerpo = JSON.parse(init.body);
+      pedidas.push(cuerpo.p_desde);
+      const filas = cuerpo.p_desde === 0
+        ? Array.from({ length: 1000 }, (_, indice) => ({ orden_venta: `OV-${indice}`, producto: 'A' }))
+        : [{ orden_venta: 'OV-1000', producto: 'B' }];
+      return new Response(JSON.stringify(filas), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    };
+
+    const filas = await consultarSabanaPedidos({
+      schema: 'emp_jbr_cygnus_y9ihz',
+      fechaInicio: '2026-10-01',
+      fechaFin: '2026-10-31',
+    });
+    assert.deepEqual(pedidas, [0, 1000]);
+    assert.equal(filas.length, 1001);
+    assert.equal(filas[1000].orden_venta, 'OV-1000');
   });
 
   it('avisa si Supabase no está configurado', async () => {

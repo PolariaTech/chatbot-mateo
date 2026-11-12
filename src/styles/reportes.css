@@ -485,6 +485,45 @@
   overflow-y: auto;
 }
 
+.reportes-root button.rp-ot-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rp-accent);
+  font: inherit;
+  text-decoration: underline;
+}
+
+.reportes-root .rp-modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 8, 7, 0.72);
+}
+
+.reportes-root .rp-modal {
+  width: min(920px, 100%);
+  max-height: min(80vh, 760px);
+  overflow: auto;
+  padding: 16px 18px 20px;
+  border: 1px solid var(--rp-line);
+  border-radius: 16px;
+  background: #0d221c;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.reportes-root .rp-modal h4 {
+  margin: 14px 0 6px;
+}
+
+.reportes-root .rp-modal .rp-table-container {
+  max-height: none;
+}
+
 .reportes-root table {
   width: max-content;
   min-width: 100%;

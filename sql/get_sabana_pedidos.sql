@@ -172,11 +172,16 @@ sin_desglose AS (
   WHERE NOT o.tiene_ot
     AND NOT o.tiene_correo
 )
-SELECT * FROM por_ot
-UNION ALL
-SELECT * FROM por_almacen
-UNION ALL
-SELECT * FROM sin_desglose
+SELECT * FROM (
+  SELECT * FROM por_ot
+  UNION ALL
+  SELECT * FROM por_almacen
+  UNION ALL
+  SELECT * FROM sin_desglose
+) sabana
+ORDER BY orden_venta, origen_desglose, orden_trabajo, almacen, numero_pedido, producto, codigo_producto, cantidad, precio, importe
+OFFSET GREATEST(COALESCE(p_desde, 0), 0)
+LIMIT p_limite
 $cuerpo$;
 BEGIN
   FOREACH esquema IN ARRAY ARRAY[
@@ -192,13 +197,19 @@ BEGIN
       esquema
     );
     EXECUTE format(
+      'DROP FUNCTION IF EXISTS %I.get_sabana_pedidos(date, date, text, integer, timestamp with time zone, timestamp with time zone, integer, integer)',
+      esquema
+    );
+    EXECUTE format(
       'CREATE OR REPLACE FUNCTION %I.get_sabana_pedidos(
         p_fecha_inicio date,
         p_fecha_fin date,
         p_fecha text DEFAULT ''pedido'',
         p_horas integer DEFAULT NULL,
         p_hora_inicio timestamp with time zone DEFAULT NULL,
-        p_hora_fin timestamp with time zone DEFAULT NULL
+        p_hora_fin timestamp with time zone DEFAULT NULL,
+        p_desde integer DEFAULT 0,
+        p_limite integer DEFAULT NULL
       )
       RETURNS TABLE (
         orden_venta text,
@@ -242,7 +253,7 @@ BEGIN
       cuerpo
     );
     EXECUTE format(
-      'GRANT EXECUTE ON FUNCTION %I.get_sabana_pedidos(date, date, text, integer, timestamp with time zone, timestamp with time zone) TO service_role, authenticator, anon, authenticated',
+      'GRANT EXECUTE ON FUNCTION %I.get_sabana_pedidos(date, date, text, integer, timestamp with time zone, timestamp with time zone, integer, integer) TO service_role, authenticator, anon, authenticated',
       esquema
     );
   END LOOP;

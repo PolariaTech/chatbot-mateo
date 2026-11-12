@@ -21,12 +21,15 @@ function solicitud(body, sesion = 'sesion-listado') {
 }
 
 describe('POST listado de órdenes', () => {
+  let ultimoCuerpo;
+
   before(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
     globalThis.fetch = async (url, init) => {
       if (String(url).includes('/rpc/get_listado_ordenes')) {
         const cuerpo = JSON.parse(init.body);
+        ultimoCuerpo = cuerpo;
         assert.equal(cuerpo.p_limite, 300);
         return new Response(JSON.stringify([{
           numero: 'OV-1',
@@ -69,5 +72,22 @@ describe('POST listado de órdenes', () => {
     assert.equal(cuerpo.total, 800);
     assert.equal(cuerpo.ordenes[0].numero, 'OV-1');
     assert.equal(cuerpo.ordenes[0].total_rango, undefined);
+    assert.equal(ultimoCuerpo.p_fecha, 'entrega');
+  });
+
+  it('respeta pedido y rechaza un tipo desconocido', async () => {
+    const respuesta = await POST(solicitud({
+      fecha_inicio: '2026-11-01',
+      fecha_fin: '2026-11-06',
+      tipo_fecha: 'pedido',
+    }));
+    assert.equal(respuesta.status, 200);
+    assert.equal(ultimoCuerpo.p_fecha, 'pedido');
+    const invalido = await POST(solicitud({
+      fecha_inicio: '2026-11-01',
+      fecha_fin: '2026-11-06',
+      tipo_fecha: 'despacho',
+    }));
+    assert.equal(invalido.status, 400);
   });
 });

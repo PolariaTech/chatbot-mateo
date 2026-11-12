@@ -17,17 +17,18 @@ function firmaPagina(filas) {
   return [primera.orden_venta, primera.orden_trabajo, primera.producto, primera.almacen, filas.length].join('|');
 }
 
-function cuerpoConsulta({ fechaInicio, fechaFin, fecha, horas, horaInicio, horaFin }) {
+function cuerpoConsulta({ fechaInicio, fechaFin, fecha, horas, horaInicio, horaFin, desde }) {
   const periodo = fecha === 'creacion' || fecha === 'entrega' ? fecha : 'pedido';
   return JSON.stringify(agregarVentana({
     p_fecha_inicio: fechaInicio,
     p_fecha_fin: fechaFin,
     p_fecha: periodo,
+    p_desde: desde,
+    p_limite: PAGINA,
   }, horas, horaInicio, horaFin));
 }
 
 async function leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, fecha, desde, horas, horaInicio, horaFin }) {
-  const hasta = desde + PAGINA - 1;
   const response = await fetch(`${baseUrl}/rest/v1/rpc/get_sabana_pedidos`, {
     method: 'POST',
     headers: {
@@ -37,10 +38,8 @@ async function leerPagina({ baseUrl, key, schema, fechaInicio, fechaFin, fecha, 
       'Content-Type': 'application/json',
       'Accept-Profile': schema,
       'Content-Profile': schema,
-      Prefer: 'count=exact',
-      Range: `${desde}-${hasta}`,
     },
-    body: cuerpoConsulta({ fechaInicio, fechaFin, fecha, horas, horaInicio, horaFin }),
+    body: cuerpoConsulta({ fechaInicio, fechaFin, fecha, horas, horaInicio, horaFin, desde }),
   });
   if (!response.ok && response.status !== 206) throw new Error(await leerError(response));
   const filas = filasDeRespuesta(await response.json());

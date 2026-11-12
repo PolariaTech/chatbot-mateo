@@ -1,3 +1,4 @@
+import { presentarCelda } from '../lib/recortar-texto-tabla';
 import { stripEmojis } from '../lib/strip-emojis';
 
 export default function ChatTable({ headers = [], rows = [] }) {
@@ -23,14 +24,17 @@ export default function ChatTable({ headers = [], rows = [] }) {
             ) : (
               rows.map((row, rowIndex) => (
                 <tr key={`row-${rowIndex}`}>
-                  {cols.map((_, cellIndex) => (
-                    <td
-                      key={`cell-${rowIndex}-${cellIndex}`}
-                      className={cellIndex === 0 ? 'chat-table__lead' : undefined}
-                    >
-                      <span>{stripEmojis(row[cellIndex]) || '—'}</span>
-                    </td>
-                  ))}
+                  {cols.map((_, cellIndex) => {
+                    const celda = presentarCelda(stripEmojis(row[cellIndex]));
+                    return (
+                      <td
+                        key={`cell-${rowIndex}-${cellIndex}`}
+                        className={cellIndex === 0 ? 'chat-table__lead' : undefined}
+                      >
+                        <span title={celda.titulo}>{celda.visible}</span>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
