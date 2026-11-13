@@ -17,9 +17,8 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
-
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const rows = await consultarVistaInventario({ schema });
     return NextResponse.json({
       success: true,

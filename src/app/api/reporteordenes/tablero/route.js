@@ -79,9 +79,8 @@ export async function POST(request) {
     );
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
-
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const ordenes = await consultarOrdenes({ schema, fechaInicio, fechaFin });
     let detalle = [];
     try {

@@ -43,7 +43,6 @@ export async function POST(request) {
     );
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
   const LIMITE_PANTALLA = 5000;
   const LIMITE_PAGINA = 1000;
   const offset = Number.isFinite(Number(body.offset))
@@ -54,6 +53,7 @@ export async function POST(request) {
     : LIMITE_PANTALLA;
 
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const { rows, total } = await consultarVistaVentas({
       schema,
       fechaInicio,

@@ -52,9 +52,8 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: errorTipo }, { status: 400 });
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
-
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const filas = await consultarOperacionOrdenes({
       schema,
       fechaInicio,

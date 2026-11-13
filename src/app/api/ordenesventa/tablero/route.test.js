@@ -27,6 +27,12 @@ describe('POST tablero de operación', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
     globalThis.fetch = async (url, init) => {
+      if (String(url).includes('/rest/v1/empresa')) {
+        return new Response(JSON.stringify({ schema_name: 'emp_demo_1xz77' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (String(url).includes('/rpc/get_operacion_ordenes')) {
         ultimoCuerpo = JSON.parse(init.body);
         return new Response(JSON.stringify([{ seccion: 'resumen', ordenes: 1 }]), {
@@ -77,5 +83,36 @@ describe('POST tablero de operación', () => {
       tipo_fecha: 'despacho',
     }));
     assert.equal(respuesta.status, 400);
+  });
+});
+
+describe('POST ordenes de venta cuando no se lee el schema', () => {
+  before(() => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'placeholder-service-role';
+    globalThis.fetch = async (url) => {
+      if (String(url).includes('/rest/v1/empresa')) {
+        return new Response(JSON.stringify({ message: 'fallo' }), { status: 500 });
+      }
+      return new Response(JSON.stringify({
+        user: { idUsuario: 'usr-demo', username: 'R5I8E', nombre: 'Demo', codigoEmpresa: '1XZ77' },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+  });
+
+  after(() => {
+    if (urlOriginal === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = urlOriginal;
+    if (claveOriginal === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = claveOriginal;
+    globalThis.fetch = fetchOriginal;
+  });
+
+  it('responde 500 y no deja la excepcion sin atrapar', async () => {
+    const respuesta = await POST(solicitud({ fecha_inicio: '2026-11-01', fecha_fin: '2026-11-13' }, 'sesion-ordenesventa'));
+    const cuerpo = await respuesta.json();
+    assert.equal(respuesta.status, 500);
+    assert.equal(cuerpo.success, false);
+    assert.match(cuerpo.error, /No se pudo leer el schema de la empresa/);
   });
 });

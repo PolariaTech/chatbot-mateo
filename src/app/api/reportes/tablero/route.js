@@ -43,9 +43,8 @@ export async function POST(request) {
     );
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
-
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const rows = await consultarTableroRpc({ schema, fechaInicio, fechaFin });
     return NextResponse.json({
       success: true,

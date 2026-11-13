@@ -45,9 +45,8 @@ export async function POST(request) {
     );
   }
 
-  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
-
   try {
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const serie = await consultarSerieVentasDiarias({
       schema,
       fechaInicio,

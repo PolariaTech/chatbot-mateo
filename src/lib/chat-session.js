@@ -4,12 +4,10 @@ import { leerDescargaOv, marcarDescarga } from './descarga-ov.js';
 import { leerDescargaOt, marcarDescargaOt } from './descarga-ot.js';
 import { schemaDeEmpresa } from './reportes-schema.js';
 
-const WEBHOOK_PRUEBA = 'https://polariatech.app.n8n.cloud/webhook-test/polaria';
 const WEBHOOK_PRODUCCION = 'https://polariatech.app.n8n.cloud/webhook/polaria';
-const EN_PRUEBA = false;
 
-export function resolveWebhookUrl(_codigoEmpresa, entorno = process.env.NODE_ENV) {
-  return EN_PRUEBA && entorno !== 'production' ? WEBHOOK_PRUEBA : WEBHOOK_PRODUCCION;
+export function resolveWebhookUrl(_codigoEmpresa) {
+  return WEBHOOK_PRODUCCION;
 }
 
 export function sortConversaciones(items) {
