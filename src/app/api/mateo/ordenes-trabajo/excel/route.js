@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../../lib/schema-empresa';
 import { leerPedidoDescargaOt } from '../../../../../lib/descarga-ot';
 import { nombreArchivoOt } from '../../../../../lib/descarga-ot-excel';
 import { consultarSabanaPedidos } from '../../../../../lib/sabana-pedidos-consulta';
@@ -25,7 +25,7 @@ export async function POST(request) {
 
   try {
     const lineas = await consultarSabanaPedidos({
-      schema: resolveReportesSchema(auth.user.codigoEmpresa),
+      schema: await schemaDeLaSesion(auth.user.codigoEmpresa),
       fechaInicio: pedido.inicio,
       fechaFin: pedido.fin,
       fecha: 'pedido',

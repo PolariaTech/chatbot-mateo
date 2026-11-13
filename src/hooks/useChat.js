@@ -18,6 +18,7 @@ import * as mateoApi from '../lib/mateo-api';
 import { esEleccionRuta, modoDesdeHistorial, modoDesdeTexto } from '../lib/route-choice';
 import { ajustarDescargas, pedidoDelTurno } from '../lib/descarga-ov-pedido';
 import { pedidoOtDelTurno } from '../lib/descarga-ot-pedido';
+import { schemaParaChat } from '../lib/schema-sesion';
 
 export function useChat({
   user,
@@ -249,7 +250,7 @@ export function useChat({
         existente: conversacionExistenteRef.current,
         modo: modoRutaRef.current,
         soloRuta,
-        user,
+        user: { ...user, schema: await schemaParaChat(accessToken, user.schema) },
       });
 
       const response = await fetch(resolveWebhookUrl(user.codigoEmpresa), {

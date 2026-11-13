@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../lib/schema-empresa';
 import { consultarVistaInventario } from '../../../../lib/reportes-tablero';
 
 export async function POST(request) {
@@ -17,7 +17,7 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const schema = resolveReportesSchema(auth.user.codigoEmpresa);
+  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
 
   try {
     const rows = await consultarVistaInventario({ schema });

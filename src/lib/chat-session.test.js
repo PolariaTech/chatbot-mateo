@@ -5,6 +5,7 @@ import {
   atenderErrorAlGuardarTitulo,
   guardarTitulo,
   leerRespuestaAgente,
+  resolveWebhookUrl,
   tituloDeTurno,
 } from './chat-session.js'
 
@@ -14,6 +15,30 @@ const usuario = {
   codigoEmpresa: 'Y9IHZ',
   nombre: 'Mateo',
 }
+
+describe('resolveWebhookUrl', () => {
+  it('manda el local al webhook de producción', () => {
+    assert.equal(
+      resolveWebhookUrl('1XZ77', 'development'),
+      'https://polariatech.app.n8n.cloud/webhook/polaria',
+    )
+    assert.equal(
+      resolveWebhookUrl('Y9IHZ', 'test'),
+      'https://polariatech.app.n8n.cloud/webhook/polaria',
+    )
+  })
+
+  it('manda a todas las empresas al webhook de producción', () => {
+    assert.equal(
+      resolveWebhookUrl('1XZ77', 'production'),
+      'https://polariatech.app.n8n.cloud/webhook/polaria',
+    )
+    assert.equal(
+      resolveWebhookUrl('Y9IHZ', 'production'),
+      'https://polariatech.app.n8n.cloud/webhook/polaria',
+    )
+  })
+})
 
 describe('armarPayloadChat', () => {
   it('deja el modo vacio cuando el turno solo elige ruta', () => {
@@ -42,6 +67,20 @@ describe('armarPayloadChat', () => {
 
     assert.equal(payload.conversacionExistente, false)
     assert.equal(payload.modo, 'PEDIDOS')
+    assert.equal(payload.schema, 'public')
+  })
+
+  it('manda el schema que trajo la empresa logueada', () => {
+    const payload = armarPayloadChat({
+      texto: 'cuántos pedidos van este mes',
+      conversacionId: 'conv-demo',
+      existente: false,
+      modo: 'PEDIDOS',
+      soloRuta: false,
+      user: { ...usuario, codigoEmpresa: 'NUEVA1', schema: 'emp_nueva_xxxx' },
+    })
+
+    assert.equal(payload.schema, 'emp_nueva_xxxx')
   })
 })
 
@@ -129,6 +168,21 @@ describe('leerRespuestaAgente', () => {
     })
     assert.equal(leido.texto, 'Te dejo el archivo.')
     assert.deepEqual(leido.descarga.columnas, ['numero', 'estado'])
+  })
+
+  it('no muestra el JSON cuando la prueba no está escuchando', () => {
+    const leido = leerRespuestaAgente({
+      code: 404,
+      message: 'The requested webhook "polaria" is not registered.',
+      hint: 'Click the Execute workflow button on the canvas, then try again.',
+    })
+
+    assert.equal(leido.texto.includes('{'), false)
+    assert.equal(leido.texto.includes('not registered'), false)
+    assert.equal(
+      leido.texto,
+      'La prueba no está escuchando. En n8n pulsa Execute workflow y vuelve a enviar el mensaje.',
+    )
   })
 
   it('lee la marca de órdenes de trabajo', () => {

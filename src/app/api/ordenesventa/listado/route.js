@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../lib/schema-empresa';
 import { leerCuerpo, validarPeriodo } from '../../../../lib/listado-ordenes';
 import { errorTipoFecha, tipoFechaOperacion } from '../../../../lib/tipo-fecha-operacion';
 import { consultarListadoOrdenes } from '../../../../lib/listado-ordenes-consulta';
@@ -22,7 +22,7 @@ export async function POST(request) {
 
   try {
     const resultado = await consultarListadoOrdenes({
-      schema: resolveReportesSchema(auth.user.codigoEmpresa),
+      schema: await schemaDeLaSesion(auth.user.codigoEmpresa),
       fechaInicio: body.fecha_inicio,
       fechaFin: body.fecha_fin,
       tipoFecha: tipoFechaOperacion(body.tipo_fecha),

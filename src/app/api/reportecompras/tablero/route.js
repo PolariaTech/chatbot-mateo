@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../lib/schema-empresa';
 import { consultarVistaCompras } from '../../../../lib/reportes-tablero';
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -43,7 +43,7 @@ export async function POST(request) {
     );
   }
 
-  const schema = resolveReportesSchema(auth.user.codigoEmpresa);
+  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
 
   try {
     const rows = await consultarVistaCompras({ schema, fechaInicio, fechaFin });

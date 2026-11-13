@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../../lib/schema-empresa';
 import {
   COLUMNAS_DETALLE_OT,
   COLUMNAS_ORDENES_VENTA,
@@ -34,7 +34,7 @@ export async function POST(request) {
   if (!descarga) return errorJson('La descarga debe ser el listado o el detalle de órdenes de trabajo.', 400);
 
   try {
-    const schema = resolveReportesSchema(auth.user.codigoEmpresa);
+    const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
     const tipoFecha = tipoFechaOperacion(body.tipo_fecha);
     const detalle = descarga === 'ot';
     const ordenes = detalle

@@ -1,7 +1,8 @@
 -- Detalle del listado: una fila por producto de cada orden de trabajo.
 -- Si el correo trae centro de consumo, el centro es la orden de trabajo.
 -- Si no hay centro, se usa el código de la orden de trabajo.
--- Si no hay ninguna, salen los productos de la orden de venta.
+-- Si no hay centro ni orden de trabajo, y el correo trae producto, sale de ahí.
+-- Si el correo no trae producto, salen las líneas de la orden de venta.
 -- El corte de fechas es el mismo de get_listado_ordenes.
 
 DO $crear$
@@ -25,7 +26,16 @@ WITH ordenes AS (
     ) AS tiene_centro,
     EXISTS (
       SELECT 1 FROM orden_trabajo ot0 WHERE ot0.id_orden_venta = ov.id_orden_venta
-    ) AS tiene_ot
+    ) AS tiene_ot,
+    (
+      jsonb_typeof(ov.origen_correo) = 'array'
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(ov.origen_correo) elemento
+        WHERE NULLIF(btrim(elemento->>'Producto'), '') IS NOT NULL
+          OR NULLIF(btrim(elemento->>'Codigo producto'), '') IS NOT NULL
+      )
+    ) AS tiene_producto_correo
   FROM orden_venta ov
   LEFT JOIN comprador c ON c.id_comprador = ov.id_comprador
   WHERE ov.estado IS DISTINCT FROM 'cancelada'
@@ -106,6 +116,42 @@ sin_ot AS (
     o.cliente,
     o.estado,
     NULL::text AS orden_trabajo,
+    NULLIF(btrim(elemento->>'Codigo producto'), '') AS codigo_producto,
+    NULLIF(btrim(elemento->>'Producto'), '') AS producto,
+    CASE
+      WHEN btrim(COALESCE(elemento->>'Cantidad', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+        THEN replace(btrim(elemento->>'Cantidad'), ',', '.')::numeric
+      ELSE 0::numeric
+    END AS cantidad,
+    NULLIF(btrim(elemento->>'Unidad'), '') AS unidad,
+    (
+      CASE
+        WHEN btrim(COALESCE(elemento->>'Cantidad', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+          THEN replace(btrim(elemento->>'Cantidad'), ',', '.')::numeric
+        ELSE 0::numeric
+      END
+      *
+      CASE
+        WHEN btrim(COALESCE(elemento->>'Precio', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+          THEN replace(btrim(elemento->>'Precio'), ',', '.')::numeric
+        ELSE 0::numeric
+      END
+    ) AS importe
+  FROM ordenes o
+  CROSS JOIN LATERAL jsonb_array_elements(o.origen_correo) elemento
+  WHERE NOT o.tiene_ot
+    AND NOT o.tiene_centro
+    AND o.tiene_producto_correo
+    AND (
+      NULLIF(btrim(elemento->>'Producto'), '') IS NOT NULL
+      OR NULLIF(btrim(elemento->>'Codigo producto'), '') IS NOT NULL
+    )
+  UNION ALL
+  SELECT
+    o.numero,
+    o.cliente,
+    o.estado,
+    NULL::text AS orden_trabajo,
     NULLIF(btrim(p.sku), '') AS codigo_producto,
     COALESCE(NULLIF(btrim(p.descripcion), ''), NULLIF(btrim(p.sku), '')) AS producto,
     COALESCE(NULLIF(l.cantidad_despachada, 0), l.cantidad_pedida, 0) AS cantidad,
@@ -115,10 +161,11 @@ sin_ot AS (
       * COALESCE(l.precio_unitario, 0)
     ) AS importe
   FROM ordenes o
-  LEFT JOIN orden_venta_linea l ON l.id_orden_venta = o.id_orden_venta
+  INNER JOIN orden_venta_linea l ON l.id_orden_venta = o.id_orden_venta
   LEFT JOIN producto p ON p.id_producto = l.id_producto
   WHERE NOT o.tiene_ot
     AND NOT o.tiene_centro
+    AND NOT o.tiene_producto_correo
 )
 SELECT numero, cliente, estado, orden_trabajo, codigo_producto, producto, cantidad, unidad, importe
 FROM (
@@ -196,7 +243,16 @@ WITH ordenes AS (
     ) AS tiene_centro,
     EXISTS (
       SELECT 1 FROM orden_trabajo ot0 WHERE ot0.id_orden_venta = ov.id_orden_venta
-    ) AS tiene_ot
+    ) AS tiene_ot,
+    (
+      jsonb_typeof(ov.origen_correo) = 'array'
+      AND EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(ov.origen_correo) elemento
+        WHERE NULLIF(btrim(elemento->>'Producto'), '') IS NOT NULL
+          OR NULLIF(btrim(elemento->>'Codigo producto'), '') IS NOT NULL
+      )
+    ) AS tiene_producto_correo
   FROM orden_venta ov
   LEFT JOIN comprador c ON c.id_comprador = ov.id_comprador
   WHERE ov.codigo = btrim(p_numero)
@@ -259,15 +315,51 @@ sin_ot AS (
   SELECT
     o.numero, o.cliente, o.estado,
     NULL::text AS orden_trabajo,
+    NULLIF(btrim(elemento->>'Codigo producto'), '') AS codigo_producto,
+    NULLIF(btrim(elemento->>'Producto'), '') AS producto,
+    CASE
+      WHEN btrim(COALESCE(elemento->>'Cantidad', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+        THEN replace(btrim(elemento->>'Cantidad'), ',', '.')::numeric
+      ELSE 0::numeric
+    END AS cantidad,
+    NULLIF(btrim(elemento->>'Unidad'), '') AS unidad,
+    (
+      CASE
+        WHEN btrim(COALESCE(elemento->>'Cantidad', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+          THEN replace(btrim(elemento->>'Cantidad'), ',', '.')::numeric
+        ELSE 0::numeric
+      END
+      *
+      CASE
+        WHEN btrim(COALESCE(elemento->>'Precio', '')) ~ '^-?[0-9]+([.,][0-9]+)?$'
+          THEN replace(btrim(elemento->>'Precio'), ',', '.')::numeric
+        ELSE 0::numeric
+      END
+    ) AS importe
+  FROM ordenes o
+  CROSS JOIN LATERAL jsonb_array_elements(o.origen_correo) elemento
+  WHERE NOT o.tiene_ot
+    AND NOT o.tiene_centro
+    AND o.tiene_producto_correo
+    AND (
+      NULLIF(btrim(elemento->>'Producto'), '') IS NOT NULL
+      OR NULLIF(btrim(elemento->>'Codigo producto'), '') IS NOT NULL
+    )
+  UNION ALL
+  SELECT
+    o.numero, o.cliente, o.estado,
+    NULL::text AS orden_trabajo,
     NULLIF(btrim(p.sku), '') AS codigo_producto,
     COALESCE(NULLIF(btrim(p.descripcion), ''), NULLIF(btrim(p.sku), '')) AS producto,
     COALESCE(NULLIF(l.cantidad_despachada, 0), l.cantidad_pedida, 0) AS cantidad,
     NULLIF(btrim(COALESCE(l.unidad_medida, p.unidad_medida)), '') AS unidad,
     (COALESCE(NULLIF(l.cantidad_despachada, 0), l.cantidad_pedida, 0) * COALESCE(l.precio_unitario, 0)) AS importe
   FROM ordenes o
-  LEFT JOIN orden_venta_linea l ON l.id_orden_venta = o.id_orden_venta
+  INNER JOIN orden_venta_linea l ON l.id_orden_venta = o.id_orden_venta
   LEFT JOIN producto p ON p.id_producto = l.id_producto
-  WHERE NOT o.tiene_ot AND NOT o.tiene_centro
+  WHERE NOT o.tiene_ot
+    AND NOT o.tiene_centro
+    AND NOT o.tiene_producto_correo
 )
 SELECT numero, cliente, estado, orden_trabajo, codigo_producto, producto, cantidad, unidad, importe
 FROM (

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../../lib/schema-empresa';
 import { leerCuerpo, numeroOrden } from '../../../../../lib/listado-ordenes';
 import { consultarProductosOrden } from '../../../../../lib/listado-ordenes-consulta';
 
@@ -19,7 +19,7 @@ export async function POST(request) {
 
   try {
     const productos = await consultarProductosOrden({
-      schema: resolveReportesSchema(auth.user.codigoEmpresa),
+      schema: await schemaDeLaSesion(auth.user.codigoEmpresa),
       numero,
     });
     return NextResponse.json({ success: true, numero, productos });

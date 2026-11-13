@@ -1,14 +1,6 @@
-/**
- * Schema de Postgres por empresa para el tablero de reportes.
- * Agrega una entrada cuando el schema exista en Supabase.
- */
-export const REPORTES_SCHEMAS = {
-  Y9IHZ: 'emp_jbr_cygnus_y9ihz',
-};
+const IDENTIFICADOR = /^[a-z_][a-z0-9_]*$/i;
 
-export const REPORTES_SCHEMA_DEFAULT = 'public';
-
-export function resolveReportesSchema(codigoEmpresa) {
-  const codigo = String(codigoEmpresa || '').trim().toUpperCase();
-  return REPORTES_SCHEMAS[codigo] || REPORTES_SCHEMA_DEFAULT;
+export function schemaDeEmpresa(schemaName) {
+  const nombre = String(schemaName || '').trim();
+  return IDENTIFICADOR.test(nombre) ? nombre : '';
 }

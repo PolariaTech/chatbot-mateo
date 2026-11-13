@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireMateoUser } from '../../../../lib/mateo-auth';
 import { isSupabaseConfigured } from '../../../../lib/supabase-server';
-import { resolveReportesSchema } from '../../../../lib/reportes-schema';
+import { schemaDeLaSesion } from '../../../../lib/schema-empresa';
 import { mensajeTimeoutConsulta } from '../../../../lib/reportes-tablero';
 import { consultarOperacionOrdenes } from '../../../../lib/operacion-ordenes-consulta';
 import { errorTipoFecha, tipoFechaOperacion } from '../../../../lib/tipo-fecha-operacion';
@@ -52,7 +52,7 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: errorTipo }, { status: 400 });
   }
 
-  const schema = resolveReportesSchema(auth.user.codigoEmpresa);
+  const schema = await schemaDeLaSesion(auth.user.codigoEmpresa);
 
   try {
     const filas = await consultarOperacionOrdenes({
