@@ -4,7 +4,7 @@ export const PRODUCT_VERSION_CHECK_INTERVAL_MS = 60_000;
 export const PRODUCT_VERSION_API_PATH = '/api/product-version';
 
 /** SemVer del bundle. Tiene que coincidir con package.json en cada publicación. */
-export const MATEO_PRODUCT_VERSION = '0.1.1';
+export const MATEO_PRODUCT_VERSION = '0.1.2';
 
 export const TITULO_NUEVA_VERSION_PRODUCTO = 'Nueva versión';
 
