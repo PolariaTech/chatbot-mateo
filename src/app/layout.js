@@ -1,5 +1,7 @@
 import "../styles/globals.css";
+import "../styles/product-version.css";
 import PWARegister from "../components/PWARegister";
+import ProductVersionGate from "../components/ProductVersionGate";
 import PWAInstallButton from "../components/PWAInstallButton";
 import { PwaInstallProvider } from "../components/PwaInstallProvider";
 import { PWA_CAPTURE_SCRIPT } from "../lib/pwa-capture-inline";
@@ -48,6 +50,7 @@ export default function RootLayout({ children }) {
           <PWAInstallButton variant="banner" />
         </PwaInstallProvider>
         <PWARegister />
+        <ProductVersionGate />
       </body>
     </html>
   );
